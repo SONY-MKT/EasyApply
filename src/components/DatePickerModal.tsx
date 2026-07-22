@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Calendar as CalendarIcon, X, Check, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import { Calendar as CalendarIcon, X, Check, ChevronLeft, ChevronRight, ChevronDown, RotateCcw } from 'lucide-react';
 
 interface DatePickerModalProps {
   value: string; // 'YYYY-MM-DD' format or empty
@@ -203,7 +203,7 @@ export const DatePickerModal: React.FC<DatePickerModalProps> = ({
         <span className={value ? 'text-gray-900 font-semibold' : 'text-gray-400'}>
           {formatDisplay() || placeholder || (lang === 'EN' ? 'DD / MM / YYYY' : 'ថ្ងៃ / ខែ / ឆ្នាំ')}
         </span>
-        <CalendarIcon size={18} className="text-gray-400 group-hover:text-red-500 transition-colors" />
+        <ChevronDown size={18} className="text-gray-400 group-hover:text-red-500 transition-colors shrink-0" />
       </button>
 
       {/* Modal Dialog */}

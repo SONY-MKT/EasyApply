@@ -1,16 +1,17 @@
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'motion/react';
-import { User, FileText, Bell, Globe, Info, ChevronRight, X } from 'lucide-react';
+import { User, FileText, Bell, Globe, Info, ChevronRight, X, Clock, CheckCircle, AlertCircle, ArrowUpRight } from 'lucide-react';
 import { useContext, useEffect, useState } from 'react';
 import { LanguageContext, AppSettingsContext } from '../App';
-import { TelegramUser } from '../types';
+import { TelegramUser, LoanApplication } from '../types';
 import { HFCLogo } from './HFCLogo';
 
 interface Props {
   onNavigate?: (tab: string) => void;
+  applications?: LoanApplication[];
 }
 
-export default function Profile({ onNavigate }: Props) {
+export default function Profile({ onNavigate, applications = [] }: Props) {
   const { lang, setLang } = useContext(LanguageContext);
   const { settings } = useContext(AppSettingsContext);
   const [tgUser, setTgUser] = useState<TelegramUser | null>(null);
@@ -18,6 +19,7 @@ export default function Profile({ onNavigate }: Props) {
   
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
   const [showAboutUs, setShowAboutUs] = useState(false);
+  const [showMyApplications, setShowMyApplications] = useState(false);
 
   useEffect(() => {
     if (window.Telegram?.WebApp) {
@@ -39,9 +41,10 @@ export default function Profile({ onNavigate }: Props) {
     { 
       label: lang === 'EN' ? 'My Applications' : 'ពាក្យសុំរបស់ខ្ញុំ', 
       icon: FileText, 
+      rightText: applications.length > 0 ? `${applications.length}` : undefined,
       onClick: () => {
         handleHaptic();
-        if (onNavigate) onNavigate('status');
+        setShowMyApplications(true);
       } 
     },
     { 
@@ -233,6 +236,107 @@ export default function Profile({ onNavigate }: Props) {
               >
                 {lang === 'EN' ? 'Close' : 'បិទ'}
               </button>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {showMyApplications && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center sm:p-4"
+            onClick={() => setShowMyApplications(false)}
+          >
+            <motion.div 
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "100%", opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 pb-safe max-h-[85vh] flex flex-col"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-red-50 text-red-600 rounded-xl">
+                    <FileText size={20} />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900">
+                    {lang === 'EN' ? 'My Applications' : 'ពាក្យសុំរបស់ខ្ញុំ'}
+                  </h3>
+                </div>
+                <button onClick={() => setShowMyApplications(false)} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200">
+                  <X size={20} className="text-gray-600" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto space-y-3 py-2 pr-1">
+                {applications.length === 0 ? (
+                  <div className="text-center py-10 space-y-3">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto text-gray-400">
+                      <FileText size={32} />
+                    </div>
+                    <p className="text-gray-500 font-medium text-sm">
+                      {lang === 'EN' ? 'No applications submitted yet' : 'អ្នកមិនទាន់មានពាក្យស្នើសុំប្រាក់កម្ចីនៅឡើយទេ'}
+                    </p>
+                    <button 
+                      onClick={() => {
+                        setShowMyApplications(false);
+                        if (onNavigate) onNavigate('apply');
+                      }}
+                      className="inline-flex items-center gap-2 bg-red-600 text-white font-bold px-5 py-2.5 rounded-xl hover:bg-red-700 transition-colors text-sm shadow-sm"
+                    >
+                      {lang === 'EN' ? 'Apply for Loan Now' : 'ស្នើសុំប្រាក់កម្ចីឥឡូវនេះ'}
+                    </button>
+                  </div>
+                ) : (
+                  applications.map((app) => {
+                    const statusConfig = {
+                      submitted: { label: lang === 'EN' ? 'Submitted' : 'បានដាក់ពាក្យ', bg: 'bg-blue-50 text-blue-700 border-blue-200' },
+                      reviewing: { label: lang === 'EN' ? 'Reviewing' : 'កំពុងពិនិត្យ', bg: 'bg-amber-50 text-amber-700 border-amber-200' },
+                      approved: { label: lang === 'EN' ? 'Approved' : 'បានអនុម័ត', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                      disbursed: { label: lang === 'EN' ? 'Disbursed' : 'បានបើកប្រាក់', bg: 'bg-green-50 text-green-700 border-green-200' },
+                      rejected: { label: lang === 'EN' ? 'Rejected' : 'មិនអនុម័ត', bg: 'bg-red-50 text-red-700 border-red-200' },
+                    }[app.status] || { label: app.status, bg: 'bg-gray-50 text-gray-700 border-gray-200' };
+
+                    return (
+                      <div 
+                        key={app.id}
+                        className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-2 hover:border-gray-200 transition-colors"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="text-xs font-mono text-gray-400">ID: #{app.id.slice(-6)}</p>
+                            <p className="text-lg font-bold text-gray-900">${app.amount.toLocaleString()}</p>
+                          </div>
+                          <span className={`px-2.5 py-1 text-xs font-bold rounded-lg border ${statusConfig.bg}`}>
+                            {statusConfig.label}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500 pt-1 border-t border-gray-200/60">
+                          <span>{app.termMonths} {lang === 'EN' ? 'Months' : 'ខែ'}</span>
+                          <span>{app.appliedAt ? new Date(app.appliedAt).toLocaleDateString() : ''}</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {applications.length > 0 && (
+                <div className="pt-3 border-t border-gray-100 mt-2">
+                  <button 
+                    onClick={() => {
+                      setShowMyApplications(false);
+                      if (onNavigate) onNavigate('status');
+                    }}
+                    className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white font-bold py-3 rounded-xl hover:bg-gray-800 transition-colors text-sm shadow-sm"
+                  >
+                    <span>{lang === 'EN' ? 'View Full Status Page' : 'មើលទំព័រស្ថានភាពពេញលេញ'}</span>
+                    <ArrowUpRight size={16} />
+                  </button>
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}

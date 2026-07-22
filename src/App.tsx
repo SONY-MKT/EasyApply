@@ -295,7 +295,7 @@ export default function App() {
           {activeTab === 'calculator' && <CalculatorView />}
           {activeTab === 'apply' && <ApplicationForm onSubmit={handleApply} />}
           {activeTab === 'status' && <LoanStatusView applications={applications} />}
-          {activeTab === 'profile' && <ProfileView onNavigate={(t) => handleNav(t as Tab)} />}
+          {activeTab === 'profile' && <ProfileView applications={applications} onNavigate={(t) => handleNav(t as Tab)} />}
           {activeTab === 'promotions' && <PromotionsView />}
           {activeTab === 'contact' && <ContactView />}
         </main>
