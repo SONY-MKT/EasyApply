@@ -61,6 +61,26 @@ export default function App() {
   const [applications, setApplications] = useState<LoanApplication[]>([]);
 
   useEffect(() => {
+    if (appSettings.appName) {
+      document.title = appSettings.appName;
+    }
+    const faviconTarget = appSettings.faviconUrl || appSettings.logoUrl;
+    if (faviconTarget) {
+      const linkElements = document.querySelectorAll<HTMLLinkElement>("link[rel*='icon']");
+      if (linkElements.length > 0) {
+        linkElements.forEach(link => {
+          link.href = faviconTarget;
+        });
+      } else {
+        const link = document.createElement('link');
+        link.rel = 'icon';
+        link.href = faviconTarget;
+        document.head.appendChild(link);
+      }
+    }
+  }, [appSettings.appName, appSettings.faviconUrl, appSettings.logoUrl]);
+
+  useEffect(() => {
     const unsubscribeSettings = subscribeToSettings((settings) => {
       // Keep any custom mappings like the motorcycle icon fix if needed,
       // but otherwise just set it.

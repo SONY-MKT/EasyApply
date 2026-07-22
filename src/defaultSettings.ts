@@ -4,6 +4,7 @@ export const defaultSettings: AppSettings = {
   appName: 'EasyApply',
   primaryColor: '#dc2626',
   logoUrl: '/logo.png',
+  faviconUrl: '/favicon.png',
   welcomeEn: 'Welcome to',
   welcomeKh: 'ស្វាគមន៍មកកាន់',
   contactPhone: '023 999 005',

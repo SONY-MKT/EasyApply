@@ -65,6 +65,7 @@ export interface AppSettings {
   appName: string; 
   primaryColor: string; 
   logoUrl: string; 
+  faviconUrl?: string;
   welcomeEn: string; 
   welcomeKh: string;
   contactPhone: string;

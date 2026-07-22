@@ -1475,9 +1475,53 @@ export default function AdminDashboard() {
                         </div>
                         <input 
                           type="text" 
-                          value={settings.logoUrl}
+                          value={settings.logoUrl || ''}
                           placeholder="Or paste image URL"
                           onChange={(e) => setSettings({...settings, logoUrl: e.target.value})}
+                          className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Favicon Icon (រូបភាព Favicon)</label>
+                    <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                      {settings.faviconUrl && (
+                        <div className="w-16 h-16 rounded-2xl border border-gray-200 p-2 bg-gray-50 flex items-center justify-center shrink-0">
+                          <img src={settings.faviconUrl} alt="Favicon preview" className="w-10 h-10 object-contain" />
+                        </div>
+                      )}
+                      <div className="flex-1 w-full space-y-2">
+                        <div className="flex gap-2">
+                          <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 font-medium text-sm rounded-xl border border-red-200 transition-colors">
+                            <Upload size={16} />
+                            <span>Upload Favicon Image</span>
+                            <input 
+                              type="file" 
+                              accept="image/*,.ico" 
+                              className="hidden" 
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onload = (event) => {
+                                    if (event.target?.result) {
+                                      setSettings({ ...settings, faviconUrl: event.target.result as string });
+                                      toast.success('Favicon uploaded successfully!');
+                                    }
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
+                        <input 
+                          type="text" 
+                          value={settings.faviconUrl || ''}
+                          placeholder="Or paste favicon URL (.png, .ico, .svg)"
+                          onChange={(e) => setSettings({...settings, faviconUrl: e.target.value})}
                           className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none"
                         />
                       </div>
