@@ -6,7 +6,7 @@ import { defaultSettings } from '../defaultSettings';
 import { subscribeToSettings, subscribeToApplications, updateApplication, deleteApplication as dbDeleteApplication, updateSettings, subscribeToLogs, addActivityLog } from '../lib/db';
 import { RichTextEditor } from './RichTextEditor';
 import XLSX from 'xlsx-js-style';
-import { Search, ChevronDown, CheckCircle, XCircle, Clock, Trash2, Edit, LayoutDashboard, FileText, Settings, Eye, Download, X, Lock, Megaphone, PhoneCall, GripVertical, Users, UserPlus, Image, Box, User, Filter, ChevronLeft, ChevronRight, Activity, Upload, LogOut, FileSpreadsheet, Table, Send, CalendarDays, DollarSign } from 'lucide-react';
+import { Search, ChevronDown, CheckCircle, XCircle, Clock, Trash2, Edit, LayoutDashboard, FileText, Settings, Eye, EyeOff, Download, X, Lock, Megaphone, PhoneCall, GripVertical, Users, UserPlus, Image, Box, User, Filter, ChevronLeft, ChevronRight, Activity, Upload, LogOut, FileSpreadsheet, Table, Send, CalendarDays, DollarSign, ShieldCheck, ArrowLeft, LogIn, AlertCircle, KeyRound } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Legend, Cell, PieChart, Pie } from 'recharts';
 import AmortizationScheduleModal from './AmortizationScheduleModal';
 import { testTelegramNotification } from '../lib/telegram';
@@ -155,6 +155,7 @@ export default function AdminDashboard() {
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
   const [applications, setApplications] = useState<LoanApplication[]>([]);
@@ -738,7 +739,7 @@ export default function AdminDashboard() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center font-sans p-4">
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center font-sans p-4 sm:p-6 relative overflow-hidden select-none">
         <Toaster position="top-center" toastOptions={{ className: 'text-sm font-medium rounded-xl shadow-lg border border-gray-100' }} />
         <style dangerouslySetInnerHTML={{__html: `
           .text-red-600 { color: ${settings.primaryColor} !important; }
@@ -750,54 +751,109 @@ export default function AdminDashboard() {
           .bg-red-50 { background-color: ${settings.primaryColor}15 !important; }
           .text-red-700 { color: ${settings.primaryColor} !important; }
         `}} />
-        <div className="bg-white p-8 sm:p-10 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] w-full max-w-[420px] border border-gray-100 flex flex-col animate-in fade-in zoom-in-95 duration-300">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Dashboard</h2>
-            <p className="text-gray-500 text-sm">Enter your credentials to access the dashboard</p>
+        
+        {/* Ambient Background Lights */}
+        <div className="absolute top-1/4 -left-20 w-96 h-96 bg-red-600/20 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-blue-600/15 rounded-full blur-[120px] pointer-events-none" />
+
+        <div className="relative bg-white p-8 sm:p-10 rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.4)] w-full max-w-[430px] border border-white/20 flex flex-col z-10 animate-in fade-in zoom-in-95 duration-300">
+          
+          {/* Logo & Header */}
+          <div className="flex flex-col items-center text-center mb-8">
+            <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 p-2.5 shadow-sm flex items-center justify-center mb-4 relative group">
+              {settings.logoUrl ? (
+                <img src={settings.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+              ) : (
+                <div className="w-full h-full rounded-xl bg-red-600 flex items-center justify-center text-white shadow-sm">
+                  <ShieldCheck size={28} />
+                </div>
+              )}
+            </div>
+
+            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+              {settings.appName || 'EasyApply'}
+            </h2>
+            
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 text-red-600 text-xs font-semibold mt-2 border border-red-100">
+              <ShieldCheck size={14} />
+              <span>ផ្ទាំងគ្រប់គ្រង Admin Portal</span>
+            </div>
+
+            <p className="text-slate-500 text-xs sm:text-sm mt-2">
+              បញ្ចូលព័ត៌មានសម្ងាត់ដើម្បីចូលប្រព័ន្ធគ្រប់គ្រង
+            </p>
           </div>
           
-          <form onSubmit={handleLogin} className="w-full space-y-5">
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-gray-700 block text-left">Username</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input 
-                    type="text" 
-                    value={username}
-                    onChange={(e) => { setUsername(e.target.value); setError(''); }}
-                    placeholder="Enter username"
-                    className={`w-full pl-11 pr-4 py-3 rounded-xl border bg-gray-50/50 focus:bg-white transition-all outline-none text-gray-900 text-base font-medium ${error ? 'border-red-500 focus:ring-2 focus:ring-red-500/20' : 'border-gray-200 focus:border-red-500 focus:ring-2 focus:ring-red-500/20'}`}
-                    autoFocus
-                  />
+          {/* Form */}
+          <form onSubmit={handleLogin} className="w-full space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-600 block text-left">
+                ឈ្មោះគណនី / Username
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <User size={18} />
                 </div>
-              </div>
-              
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-gray-700 block text-left">Password</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input 
-                    type="password" 
-                    value={password}
-                    onChange={(e) => { setPassword(e.target.value); setError(''); }}
-                    placeholder="••••••••"
-                    className={`w-full pl-11 pr-4 py-3 rounded-xl border bg-gray-50/50 focus:bg-white transition-all outline-none text-gray-900 text-lg tracking-widest ${error ? 'border-red-500 focus:ring-2 focus:ring-red-500/20' : 'border-gray-200 focus:border-red-500 focus:ring-2 focus:ring-red-500/20'}`}
-                  />
-                </div>
+                <input 
+                  type="text" 
+                  value={username}
+                  onChange={(e) => { setUsername(e.target.value); setError(''); }}
+                  placeholder="Enter username"
+                  className={`w-full pl-10 pr-4 py-3 rounded-2xl border bg-slate-50/50 focus:bg-white transition-all outline-none text-slate-900 text-sm font-medium ${error ? 'border-red-500 ring-2 ring-red-500/20' : 'border-slate-200 focus:border-red-500 focus:ring-2 focus:ring-red-500/20'}`}
+                  autoFocus
+                />
               </div>
             </div>
             
-            {error && <p className="text-red-500 text-xs mt-1.5 text-center font-medium animate-in slide-in-from-top-1">{error}</p>}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-600 block text-left">
+                ពាក្យសម្ងាត់ / Password
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <KeyRound size={18} />
+                </div>
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); setError(''); }}
+                  placeholder="••••••••"
+                  className={`w-full pl-10 pr-11 py-3 rounded-2xl border bg-slate-50/50 focus:bg-white transition-all outline-none text-slate-900 text-sm font-medium ${error ? 'border-red-500 ring-2 ring-red-500/20' : 'border-slate-200 focus:border-red-500 focus:ring-2 focus:ring-red-500/20'}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
             
-            <button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-xl transition-all shadow-sm shadow-red-600/20 flex items-center justify-center gap-2 mt-4">
-              Unlock Dashboard
+            {error && (
+              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 text-red-600 text-xs font-medium rounded-xl animate-in slide-in-from-top-1">
+                <AlertCircle size={16} className="shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+            
+            <button 
+              type="submit" 
+              className="w-full bg-red-600 hover:bg-red-700 active:scale-[0.99] text-white font-semibold py-3.5 rounded-2xl transition-all shadow-lg shadow-red-600/25 flex items-center justify-center gap-2 mt-4 text-sm"
+            >
+              <LogIn size={18} />
+              <span>ចូលប្រព័ន្ធ / Unlock Dashboard</span>
             </button>
           </form>
+
+          {/* Footer Back Link */}
+          <a 
+            href="/" 
+            className="inline-flex items-center justify-center gap-1.5 text-xs font-medium text-slate-400 hover:text-slate-700 transition-colors mt-6 pt-5 border-t border-slate-100"
+          >
+            <ArrowLeft size={14} />
+            <span>ត្រឡប់ទៅទំព័រដើម / Back to Main Site</span>
+          </a>
         </div>
       </div>
     );

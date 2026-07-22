@@ -5,6 +5,27 @@
   --font-sans: "Katumroy Pro", "Kantumruy Pro", ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Global Mobile Responsiveness & Touch Optimization */
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  overscroll-behavior-y: none;
+}
+
+/* iOS Safe Areas */
+.pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0.75rem));
+}
+
+.pt-safe {
+  padding-top: max(0.5rem, env(safe-area-inset-top, 0.5rem));
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 4px;
@@ -32,3 +53,9 @@
     font-size: 16px !important;
   }
 }
+
+/* Ensure buttons and touch targets have comfortable minimum sizes on phones */
+button, a, input, select {
+  touch-action: manipulation;
+}
+

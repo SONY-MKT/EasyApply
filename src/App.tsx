@@ -147,6 +147,17 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (window.Telegram?.WebApp) {
+      try {
+        window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand();
+      } catch (e) {
+        console.log('Telegram WebApp init error:', e);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     if (window.Telegram?.WebApp?.BackButton) {
       if (activeTab === 'home') {
         window.Telegram.WebApp.BackButton.hide();
@@ -228,7 +239,7 @@ export default function App() {
         `}} />
         <div className="min-h-[100dvh] bg-gray-100 font-sans flex justify-center overflow-hidden">
           <Toaster position="top-center" toastOptions={{ className: 'text-sm font-medium rounded-xl shadow-lg border border-gray-100' }} />
-        <div className="w-full max-w-[405px] bg-white h-[100dvh] relative shadow-2xl flex flex-col mx-auto">
+        <div className="w-full max-w-[450px] bg-white h-[100dvh] relative shadow-2xl flex flex-col mx-auto border-x border-gray-100">
         <main className="flex-1 overflow-y-auto bg-gray-50 pb-20">
           {activeTab === 'home' && <Dashboard onNavigate={(t) => handleNav(t as Tab)} />}
           {activeTab === 'calculator' && <CalculatorView />}
@@ -239,23 +250,23 @@ export default function App() {
           {activeTab === 'contact' && <ContactView />}
         </main>
 
-        <nav className="bg-white border-t border-gray-200 flex justify-around py-3 pb-safe z-20 absolute bottom-0 w-full shadow-[0_-5px_15px_-5px_rgba(0,0,0,0.05)]">
+        <nav className="bg-white border-t border-gray-200 flex justify-around py-2.5 pb-safe z-20 absolute bottom-0 w-full shadow-[0_-5px_15px_-5px_rgba(0,0,0,0.05)]">
           {navItems.map((item) => {
             const isActive = activeTab === item.id || (['apply', 'promotions', 'contact'].includes(activeTab) && item.id === 'home');
             return (
               <button
                 key={item.id}
                 onClick={() => handleNav(item.id as Tab)}
-                className={`flex flex-col items-center gap-1.5 transition-all px-4 ${
+                className={`flex flex-col items-center gap-1 transition-all px-2 sm:px-4 ${
                   isActive
                     ? 'text-red-600' 
                     : 'text-gray-400 hover:text-gray-600'
                 }`}
               >
                 <div className={`p-1.5 rounded-xl transition-colors ${isActive ? 'bg-red-50' : 'bg-transparent'}`}>
-                  <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+                  <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
                 </div>
-                <span className={`text-[10px] ${isActive ? 'font-bold' : 'font-medium'}`}>{item.label}</span>
+                <span className={`text-[10px] whitespace-nowrap ${isActive ? 'font-bold' : 'font-medium'}`}>{item.label}</span>
               </button>
             )
           })}
