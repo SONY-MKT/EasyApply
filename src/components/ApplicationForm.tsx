@@ -97,6 +97,7 @@ export default function ApplicationForm({ onSubmit }: Props) {
   const [occupation, setOccupation] = useState<string>('');
   const [companyName, setCompanyName] = useState<string>('');
   const [monthlyIncome, setMonthlyIncome] = useState<string>('');
+  const [productId, setProductId] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState(1);
@@ -129,7 +130,8 @@ export default function ApplicationForm({ onSubmit }: Props) {
       occupation,
       companyName,
       monthlyIncome: Number(monthlyIncome),
-      employmentType
+      employmentType,
+      productId
     });
   };
 
@@ -283,6 +285,19 @@ export default function ApplicationForm({ onSubmit }: Props) {
                 className="w-full pl-11 pr-4 py-3.5 bg-white border border-gray-200 rounded-xl outline-none transition-all text-sm shadow-sm"
               />
             </InputWrapper>
+
+            <InputWrapper icon={FileText} label={lang === 'EN' ? "Product Type" : "ប្រភេទផលិតផល"}>
+              <CustomSelect
+                value={productId}
+                onChange={setProductId}
+                placeholder={lang === 'EN' ? "Select Product" : "ជ្រើសរើសផលិតផល"}
+                options={settings.products.map(p => ({
+                  value: p.id,
+                  label: lang === 'EN' ? p.nameEn : p.nameKh
+                }))}
+                className="w-full pl-11 pr-4 py-3.5 bg-white border border-gray-200 rounded-xl outline-none transition-all text-sm shadow-sm"
+              />
+            </InputWrapper>
             
             <div className="pt-2">
               <InputWrapper icon={DollarSign} label={lang === 'EN' ? "Requested Loan Amount" : "ចំនួនប្រាក់កម្ចីដែលស្នើសុំ"}>
@@ -376,6 +391,7 @@ export default function ApplicationForm({ onSubmit }: Props) {
                 <div className="flex justify-between pt-2"><span className="text-gray-500">{lang === 'EN' ? 'Full Name' : 'ឈ្មោះពេញ'}</span><span className="font-semibold text-gray-900">{applicantName || (lang === 'EN' ? 'Not provided' : 'មិនមាន')}</span></div>
                 <div className="flex justify-between pt-2"><span className="text-gray-500">{lang === 'EN' ? 'Phone Number' : 'លេខទូរស័ព្ទ'}</span><span className="font-semibold text-gray-900">{phone || (lang === 'EN' ? 'Not provided' : 'មិនមាន')}</span></div>
                 <div className="flex justify-between pt-2"><span className="text-gray-500">{lang === 'EN' ? 'Occupation' : 'មុខរបរ'}</span><span className="font-semibold text-gray-900">{occupation || (lang === 'EN' ? 'Not provided' : 'មិនមាន')}</span></div>
+                <div className="flex justify-between pt-2"><span className="text-gray-500">{lang === 'EN' ? 'Product Type' : 'ប្រភេទផលិតផល'}</span><span className="font-semibold text-gray-900">{productId ? (settings.products.find(p => p.id === productId)?.[lang === 'EN' ? 'nameEn' : 'nameKh'] || productId) : (lang === 'EN' ? 'Not provided' : 'មិនមាន')}</span></div>
                 <div className="flex justify-between pt-2"><span className="text-gray-500">{lang === 'EN' ? 'Loan Amount' : 'ចំនួនប្រាក់កម្ចី'}</span><span className="font-bold text-red-600 text-base">${amount || '0'}</span></div>
                 <div className="flex justify-between pt-2"><span className="text-gray-500">{lang === 'EN' ? 'Tenure' : 'រយៈពេលខ្ចី'}</span><span className="font-semibold text-gray-900">{termMonths} {lang === 'EN' ? 'Months' : 'ខែ'}</span></div>
               </div>

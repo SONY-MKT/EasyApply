@@ -6,10 +6,10 @@ import { defaultSettings } from '../defaultSettings';
 import { subscribeToSettings, subscribeToApplications, updateApplication, deleteApplication as dbDeleteApplication, updateSettings, subscribeToLogs, addActivityLog } from '../lib/db';
 import { RichTextEditor } from './RichTextEditor';
 import XLSX from 'xlsx-js-style';
-import { Search, ChevronDown, CheckCircle, XCircle, Clock, Trash2, Edit, LayoutDashboard, FileText, Settings, Eye, EyeOff, Download, X, Lock, Megaphone, PhoneCall, GripVertical, Users, UserPlus, Image, Box, User, Filter, ChevronLeft, ChevronRight, Activity, Upload, LogOut, FileSpreadsheet, Table, Send, CalendarDays, DollarSign, ShieldCheck, ArrowLeft, LogIn, AlertCircle, KeyRound } from 'lucide-react';
+import { Search, ChevronDown, CheckCircle, XCircle, Clock, Trash2, Edit, LayoutDashboard, FileText, Settings, Eye, EyeOff, Download, X, Lock, Megaphone, PhoneCall, GripVertical, Users, UserPlus, Image, Box, User, Filter, ChevronLeft, ChevronRight, Activity, Upload, LogOut, FileSpreadsheet, Table, Send, CalendarDays, DollarSign, ShieldCheck, ArrowLeft, LogIn, AlertCircle, KeyRound, Menu } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Legend, Cell, PieChart, Pie } from 'recharts';
 import AmortizationScheduleModal from './AmortizationScheduleModal';
-import { testTelegramNotification } from '../lib/telegram';
+import { testTelegramNotification, sendTelegramStatusUpdateNotification, registerTelegramWebhook } from '../lib/telegram';
 
 const getStatusBadge = (status: LoanApplication['status']) => {
     switch(status) {
@@ -162,11 +162,16 @@ export default function AdminDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
+  const [productFilter, setProductFilter] = useState<string>('all');
   const [previewDoc, setPreviewDoc] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [activeTab, setActiveTab] = useState<'dashboard' | 'applications' | 'products' | 'promotions' | 'users' | 'logs' | 'contact' | 'settings'>('dashboard');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedApp, setSelectedApp] = useState<LoanApplication | null>(null);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectAppId, setRejectAppId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   // Activity Logs State
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
@@ -226,6 +231,7 @@ export default function AdminDashboard() {
   const [exportMinAmount, setExportMinAmount] = useState<string>('');
   const [exportMaxAmount, setExportMaxAmount] = useState<string>('');
   const [isTestingTelegram, setIsTestingTelegram] = useState(false);
+  const [isRegisteringWebhook, setIsRegisteringWebhook] = useState(false);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -275,7 +281,17 @@ export default function AdminDashboard() {
     return () => unsubscribeSettings();
   }, []);
 
-  const updateStatus = async (id: string, newStatus: LoanApplication['status']) => {
+  const handleStatusChange = (id: string, newStatus: LoanApplication['status']) => {
+    if (newStatus === 'rejected') {
+      setRejectAppId(id);
+      setRejectReason('');
+      setShowRejectModal(true);
+    } else {
+      updateStatus(id, newStatus);
+    }
+  };
+
+  const updateStatus = async (id: string, newStatus: LoanApplication['status'], reason?: string) => {
     try {
       const appToUpdate = applications.find(a => a.id === id);
       if (!appToUpdate) return;
@@ -284,23 +300,39 @@ export default function AdminDashboard() {
         [newStatus]: new Date().toISOString()
       };
       
-      await updateApplication(id, {
+      const updates: Partial<LoanApplication> = {
         status: newStatus,
         statusTimestamps: newTimestamps
-      });
+      };
+      
+      if (newStatus === 'rejected' && reason) {
+        updates.rejectionReason = reason;
+      }
+      
+      await updateApplication(id, updates);
       
       toast.success('Status updated successfully');
       logActivity('Update Status', `Updated application ${id} to ${newStatus}`);
+
+      sendTelegramStatusUpdateNotification(settings, appToUpdate, newStatus, reason);
       
       if (selectedApp && selectedApp.id === id) {
         setSelectedApp({
           ...selectedApp,
-          status: newStatus,
-          statusTimestamps: newTimestamps
-        });
+          ...updates
+        } as LoanApplication);
       }
     } catch (err) {
       toast.error('Failed to update status');
+    }
+  };
+
+  const confirmReject = async () => {
+    if (rejectAppId) {
+      await updateStatus(rejectAppId, 'rejected', rejectReason);
+      setShowRejectModal(false);
+      setRejectAppId(null);
+      setRejectReason('');
     }
   };
 
@@ -348,6 +380,9 @@ export default function AdminDashboard() {
       // Status filter
       const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
 
+      // Product filter
+      const matchesProduct = productFilter === 'all' || app.productId === productFilter;
+
       // Date filter
       let matchesDate = true;
       if (dateFilter !== 'all') {
@@ -364,14 +399,14 @@ export default function AdminDashboard() {
         }
       }
 
-      return matchesSearch && matchesStatus && matchesDate;
+      return matchesSearch && matchesStatus && matchesProduct && matchesDate;
     });
-  }, [applications, searchTerm, statusFilter, dateFilter]);
+  }, [applications, searchTerm, statusFilter, productFilter, dateFilter]);
 
   // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, dateFilter]);
+  }, [searchTerm, statusFilter, productFilter, dateFilter]);
 
   const totalPages = Math.ceil(filteredApps.length / itemsPerPage);
   
@@ -402,6 +437,31 @@ export default function AdminDashboard() {
       statusData.push({ name: 'No Data', value: 1, color: '#e5e7eb' });
     }
 
+    const productDataMap: Record<string, number> = {};
+    const productColors = ['#f43f5e', '#8b5cf6', '#0ea5e9', '#10b981', '#f59e0b', '#64748b'];
+    
+    settings.products.forEach(p => {
+      productDataMap[p.id] = 0;
+    });
+
+    let hasProductData = false;
+    applications.forEach(app => {
+      if (app.productId) {
+        productDataMap[app.productId] = (productDataMap[app.productId] || 0) + 1;
+        hasProductData = true;
+      }
+    });
+
+    const productData = Object.entries(productDataMap).map(([id, count], index) => ({
+      name: settings.products.find(p => p.id === id)?.nameEn || 'Other',
+      value: count,
+      color: productColors[index % productColors.length]
+    })).filter(d => d.value > 0);
+
+    if (!hasProductData) {
+      productData.push({ name: 'No Data', value: 1, color: '#e5e7eb' });
+    }
+
     const timeDataMap: Record<string, number> = {};
     const sortedApps = [...applications].sort((a, b) => new Date(a.appliedAt).getTime() - new Date(b.appliedAt).getTime());
     
@@ -425,8 +485,8 @@ export default function AdminDashboard() {
       applications: count
     }));
 
-    return { statusData, timeData };
-  }, [applications]);
+    return { statusData, timeData, productData };
+  }, [applications, settings.products]);
 
   const exportFilteredApps = useMemo(() => {
     return applications.filter(app => {
@@ -872,18 +932,29 @@ export default function AdminDashboard() {
         .bg-red-50 { background-color: ${settings.primaryColor}15 !important; }
         .text-red-700 { color: ${settings.primaryColor} !important; }
       `}} />
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-40 lg:hidden" onClick={() => setIsMobileMenuOpen(false)} />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-200 shadow-sm flex flex-col z-10 sticky top-0 h-screen pt-4">
-        <nav className="p-4 flex-1 space-y-2">
+      <aside className={`fixed lg:static inset-y-0 left-0 w-64 bg-white border-r border-gray-200 shadow-sm flex flex-col z-50 transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 h-screen pt-4`}>
+        <div className="flex items-center justify-between px-6 pb-4 lg:hidden">
+          <span className="font-bold text-lg text-gray-900">Menu</span>
+          <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-gray-500 hover:text-gray-900 bg-gray-50 rounded-full">
+            <X size={20} />
+          </button>
+        </div>
+        <nav className="p-4 flex-1 space-y-2 overflow-y-auto">
           <button 
-            onClick={() => setActiveTab('dashboard')}
+            onClick={() => { setActiveTab('dashboard'); setIsMobileMenuOpen(false); }}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors ${activeTab === 'dashboard' ? 'bg-red-50 text-red-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
           >
             <LayoutDashboard size={20} />
             Dashboard
           </button>
           <button 
-            onClick={() => setActiveTab('applications')}
+            onClick={() => { setActiveTab('applications'); setIsMobileMenuOpen(false); }}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors ${activeTab === 'applications' ? 'bg-red-50 text-red-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
           >
             <FileText size={20} />
@@ -892,21 +963,21 @@ export default function AdminDashboard() {
           {currentUser?.role === 'Admin' && (
             <>
               <button 
-                onClick={() => setActiveTab('products')}
+                onClick={() => { setActiveTab('products'); setIsMobileMenuOpen(false); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors ${activeTab === 'products' ? 'bg-red-50 text-red-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
               >
                 <Box size={20} />
                 Products
               </button>
               <button 
-                onClick={() => setActiveTab('promotions')}
+                onClick={() => { setActiveTab('promotions'); setIsMobileMenuOpen(false); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors ${activeTab === 'promotions' ? 'bg-red-50 text-red-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
               >
                 <Megaphone size={20} />
                 Promotions
               </button>
               <button 
-                onClick={() => setActiveTab('users')}
+                onClick={() => { setActiveTab('users'); setIsMobileMenuOpen(false); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors ${activeTab === 'users' ? 'bg-red-50 text-red-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
               >
                 <Users size={20} />
@@ -915,7 +986,7 @@ export default function AdminDashboard() {
             </>
           )}
           <button 
-            onClick={() => setActiveTab('contact')}
+            onClick={() => { setActiveTab('contact'); setIsMobileMenuOpen(false); }}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors ${activeTab === 'contact' ? 'bg-red-50 text-red-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
           >
             <PhoneCall size={20} />
@@ -924,14 +995,14 @@ export default function AdminDashboard() {
           {currentUser?.role === 'Admin' && (
             <>
               <button 
-                onClick={() => setActiveTab('logs')}
+                onClick={() => { setActiveTab('logs'); setIsMobileMenuOpen(false); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors ${activeTab === 'logs' ? 'bg-red-50 text-red-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
               >
                 <Activity size={20} />
                 Activity Logs
               </button>
               <button 
-                onClick={() => setActiveTab('settings')}
+                onClick={() => { setActiveTab('settings'); setIsMobileMenuOpen(false); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors ${activeTab === 'settings' ? 'bg-red-50 text-red-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
               >
                 <Settings size={20} />
@@ -964,14 +1035,22 @@ export default function AdminDashboard() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-hidden flex flex-col relative bg-gray-50/50">
-        <header className="bg-white border-b border-gray-200 px-8 py-5 flex items-center justify-between sticky top-0 z-10 shadow-sm">
-          <h2 className="text-2xl font-bold text-gray-800 tracking-tight">
-            {activeTab === 'dashboard' ? 'Overview' : activeTab === 'settings' ? 'Settings' : activeTab === 'products' ? 'Products' : activeTab === 'promotions' ? 'Promotions' : activeTab === 'users' ? 'Users Management' : activeTab === 'contact' ? 'Contact Information' : 'Loan Applications'}
-          </h2>
+      <main className="flex-1 overflow-hidden flex flex-col relative bg-gray-50/50 min-w-0">
+        <header className="bg-white border-b border-gray-200 px-4 lg:px-8 py-4 lg:py-5 flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-0 z-10 shadow-sm">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="p-2 -ml-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg lg:hidden"
+            >
+              <Menu size={24} />
+            </button>
+            <h2 className="text-xl lg:text-2xl font-bold text-gray-800 tracking-tight">
+              {activeTab === 'dashboard' ? 'Overview' : activeTab === 'settings' ? 'Settings' : activeTab === 'products' ? 'Products' : activeTab === 'promotions' ? 'Promotions' : activeTab === 'users' ? 'Users Management' : activeTab === 'contact' ? 'Contact Information' : 'Loan Applications'}
+            </h2>
+          </div>
           {activeTab === 'applications' && (
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <div className="relative w-72">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="relative w-full sm:w-72">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Search size={18} className="text-gray-400" />
                 </div>
@@ -995,7 +1074,7 @@ export default function AdminDashboard() {
           )}
         </header>
 
-        <div className="flex-1 overflow-auto p-8">
+        <div className="flex-1 overflow-auto p-4 lg:p-8">
           <AnimatePresence mode="wait">
           {activeTab === 'dashboard' && (
             <motion.div key="dashboard" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }} className="space-y-6">
@@ -1022,7 +1101,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm lg:col-span-2">
                   <h3 className="text-lg font-bold text-gray-900 mb-6">Applications Over Time</h3>
                   <div className="h-[300px] w-full">
@@ -1061,6 +1140,33 @@ export default function AdminDashboard() {
                           dataKey="value"
                         >
                           {chartData.statusData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <RechartsTooltip 
+                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
+                        />
+                        <Legend layout="vertical" verticalAlign="middle" align="right" wrapperStyle={{ fontSize: '12px' }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                  <h3 className="text-lg font-bold text-gray-900 mb-6">Product Types</h3>
+                  <div className="h-[300px] w-full flex items-center justify-center">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={chartData.productData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={90}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {chartData.productData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
@@ -1681,28 +1787,53 @@ export default function AdminDashboard() {
                           <div>• បន្ថែម Bot ចូលក្នុង Group/Channel រួចកំណត់អោយជា Admin</div>
                         </div>
 
-                        <button
-                          type="button"
-                          disabled={isTestingTelegram || !settings.telegramBotToken || !settings.telegramChatId}
-                          onClick={async () => {
-                            setIsTestingTelegram(true);
-                            const res = await testTelegramNotification(
-                              settings.telegramBotToken || '',
-                              settings.telegramChatId || ''
-                            );
-                            setIsTestingTelegram(false);
-                            if (res.success) {
-                              toast.success(res.message);
-                              logActivity('Test Telegram Notification', 'Successfully sent test notification to Telegram chat');
-                            } else {
-                              toast.error(res.message);
-                            }
-                          }}
-                          className="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-semibold rounded-xl text-xs flex items-center gap-2 transition-all shadow-sm shrink-0"
-                        >
-                          <Send size={14} />
-                          <span>{isTestingTelegram ? 'កំពុងសាកល្បង...' : 'សាកល្បងផ្ញើសារ (Test Bot)'}</span>
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            disabled={isTestingTelegram || !settings.telegramBotToken || !settings.telegramChatId}
+                            onClick={async () => {
+                              setIsTestingTelegram(true);
+                              const res = await testTelegramNotification(
+                                settings.telegramBotToken || '',
+                                settings.telegramChatId || ''
+                              );
+                              setIsTestingTelegram(false);
+                              if (res.success) {
+                                toast.success(res.message);
+                                logActivity('Test Telegram Notification', 'Successfully sent test notification to Telegram chat');
+                              } else {
+                                toast.error(res.message);
+                              }
+                            }}
+                            className="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-semibold rounded-xl text-xs flex items-center gap-2 transition-all shadow-sm shrink-0"
+                          >
+                            <Send size={14} />
+                            <span>{isTestingTelegram ? 'កំពុងសាកល្បង...' : 'សាកល្បងផ្ញើសារ (Test Bot)'}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={isRegisteringWebhook || !settings.telegramBotToken}
+                            onClick={async () => {
+                              setIsRegisteringWebhook(true);
+                              const res = await registerTelegramWebhook(
+                                settings.telegramBotToken || '',
+                                window.location.origin
+                              );
+                              setIsRegisteringWebhook(false);
+                              if (res.success) {
+                                toast.success(res.message);
+                                logActivity('Register Telegram Webhook', 'Successfully registered Telegram Webhook');
+                              } else {
+                                toast.error(res.message);
+                              }
+                            }}
+                            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold rounded-xl text-xs flex items-center gap-2 transition-all shadow-sm shrink-0"
+                          >
+                            <Activity size={14} />
+                            <span>{isRegisteringWebhook ? 'កំពុងចុះឈ្មោះ...' : 'Register Webhook'}</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1741,6 +1872,16 @@ export default function AdminDashboard() {
                     className="w-40"
                   />
 
+                  <CustomSelect
+                    value={productFilter}
+                    onChange={(v) => setProductFilter(v)}
+                    options={[
+                      { value: 'all', label: 'All Products' },
+                      ...(settings.products?.map(p => ({ value: p.id, label: p.nameEn })) || [])
+                    ]}
+                    className="w-40"
+                  />
+
                   <CustomSelect 
                     value={dateFilter}
                     onChange={(v) => setDateFilter(v)}
@@ -1757,22 +1898,16 @@ export default function AdminDashboard() {
                   <span className="text-sm font-medium text-gray-500 hidden sm:inline">
                     Showing {paginatedApps.length} of {filteredApps.length} applications
                   </span>
-                  <button
-                    onClick={() => setShowExportModal(true)}
-                    className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors"
-                  >
-                    <FileSpreadsheet size={16} />
-                    <span>ទាញយកទិន្នន័យ (Export)</span>
-                  </button>
                 </div>
               </div>
 
-              <div className="overflow-visible">
-                <table className="w-full text-left border-collapse">
+              <div className="overflow-x-auto min-h-[400px]">
+                <table className="w-full text-left border-collapse min-w-[800px]">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200 text-xs font-bold uppercase tracking-wider text-gray-500">
                       <th className="px-6 py-4">App ID</th>
                       <th className="px-6 py-4">Applicant</th>
+                      <th className="px-6 py-4">Product</th>
                       <th className="px-6 py-4">Amount & Term</th>
                       <th className="px-6 py-4">Applied Date</th>
                       <th className="px-6 py-4">Status</th>
@@ -1791,6 +1926,11 @@ export default function AdminDashboard() {
                             <div className="text-sm text-gray-500 mt-0.5">{app.phone}</div>
                           </td>
                           <td className="px-6 py-4">
+                            <div className="text-sm font-bold text-gray-700">
+                              {app.productId ? (settings.products?.find(p => p.id === app.productId)?.nameEn || app.productId) : 'N/A'}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
                             <div className="font-black text-gray-900">${app.amount.toLocaleString()}</div>
                             <div className="text-sm font-medium text-gray-500 mt-0.5">{app.termMonths} Months</div>
                           </td>
@@ -1799,7 +1939,7 @@ export default function AdminDashboard() {
                             <div className="text-xs font-medium text-gray-500 mt-0.5">{new Date(app.appliedAt).toLocaleTimeString()}</div>
                           </td>
                           <td className="px-6 py-4">
-                            <StatusDropdown value={app.status} onChange={(v) => updateStatus(app.id, v)} />
+                            <StatusDropdown value={app.status} onChange={(v) => handleStatusChange(app.id, v)} />
                           </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex items-center justify-end gap-2 transition-opacity">
@@ -1893,8 +2033,8 @@ export default function AdminDashboard() {
                 <h3 className="text-xl font-bold text-gray-900">Activity Logs</h3>
                 <p className="text-gray-500 mt-1">Audit trail of system changes and administrative actions.</p>
               </div>
-              <div className="overflow-visible">
-                <table className="w-full text-left border-collapse">
+              <div className="overflow-x-auto min-h-[400px]">
+                <table className="w-full text-left border-collapse min-w-[800px]">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200 text-xs font-bold uppercase tracking-wider text-gray-500">
                       <th className="px-6 py-4">Timestamp</th>
@@ -1966,7 +2106,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="flex flex-col items-start sm:items-end">
                   <div className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-1">Current Status</div>
-                  <StatusDropdown value={selectedApp.status} onChange={(v) => updateStatus(selectedApp.id, v)} />
+                  <StatusDropdown value={selectedApp.status} onChange={(v) => handleStatusChange(selectedApp.id, v)} />
                 </div>
               </div>
 
@@ -2045,7 +2185,25 @@ export default function AdminDashboard() {
                     <div className="text-lg font-bold text-gray-900">{selectedApp.termMonths} Months</div>
                   )}
                 </div>
-                <div className="sm:col-span-2">
+                <div>
+                  <div className="text-sm font-semibold text-gray-500 mb-1">Product Type</div>
+                  {isEditing ? (
+                    <CustomSelect
+                      value={editForm.productId || ''}
+                      onChange={(v) => setEditForm({...editForm, productId: v})}
+                      options={[
+                        { value: '', label: 'None' },
+                        ...(settings.products?.map(p => ({ value: p.id, label: p.nameEn })) || [])
+                      ]}
+                      className="w-full"
+                    />
+                  ) : (
+                    <div className="text-lg font-bold text-gray-900">
+                      {selectedApp.productId ? (settings.products?.find(p => p.id === selectedApp.productId)?.nameEn || selectedApp.productId) : 'N/A'}
+                    </div>
+                  )}
+                </div>
+                <div>
                   <div className="text-sm font-semibold text-gray-500 mb-1">Applied Date</div>
                   <div className="text-base font-bold text-gray-900">{new Date(selectedApp.appliedAt).toLocaleString()}</div>
                 </div>
@@ -2061,6 +2219,13 @@ export default function AdminDashboard() {
                   <span>View Amortization Schedule / មើលតារាងរំលស់</span>
                 </button>
               </div>
+
+              {selectedApp.status === 'rejected' && selectedApp.rejectionReason && (
+                <div className="bg-red-50 border border-red-100 rounded-xl p-4">
+                  <h4 className="text-sm font-bold text-red-600 mb-1 uppercase tracking-wider">Rejection Reason</h4>
+                  <p className="text-sm text-red-900">{selectedApp.rejectionReason}</p>
+                </div>
+              )}
 
               {/* Documents */}
               <div>
@@ -2346,6 +2511,61 @@ export default function AdminDashboard() {
                 >
                   <FileSpreadsheet size={18} />
                   <span>ទាញយកទិន្នន័យជា Excel ({exportFilteredApps.length})</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {showRejectModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col"
+            >
+              <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+                <h3 className="text-lg font-bold text-gray-900">ហេតុផលនៃការបដិសេធ (Rejection Reason)</h3>
+                <button
+                  onClick={() => {
+                    setShowRejectModal(false);
+                    setRejectAppId(null);
+                    setRejectReason('');
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="p-6">
+                <p className="text-sm text-gray-600 mb-4">
+                  សូមបញ្ចូលហេតុផលនៃការបដិសេធពាក្យស្នើសុំនេះ ដើម្បីផ្តល់ជាដំណឹងដល់អ្នកស្នើសុំ។
+                </p>
+                <textarea
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="ហេតុផលនៃការបដិសេធ..."
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none resize-none h-32"
+                />
+              </div>
+              <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowRejectModal(false);
+                    setRejectAppId(null);
+                    setRejectReason('');
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-200 rounded-xl transition-colors"
+                >
+                  បោះបង់ (Cancel)
+                </button>
+                <button
+                  onClick={confirmReject}
+                  disabled={!rejectReason.trim()}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-colors"
+                >
+                  បដិសេធ (Reject)
                 </button>
               </div>
             </motion.div>

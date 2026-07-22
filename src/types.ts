@@ -25,6 +25,9 @@ export interface LoanApplication {
   companyName?: string;
   monthlyIncome?: number;
   employmentType?: string;
+  productId?: string;
+  telegramUserId?: number;
+  rejectionReason?: string;
   statusTimestamps?: Partial<Record<ApplicationStatus, string>>;
 }
 

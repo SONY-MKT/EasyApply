@@ -60,6 +60,7 @@ export default function App() {
   const [appSettings, setAppSettings] = useState<AppSettings>(defaultSettings);
   const [applications, setApplications] = useState<LoanApplication[]>([]);
   const [isInputFocused, setIsInputFocused] = useState(false);
+  const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
 
   // Detect focus on form fields to hide bottom nav when virtual keyboard is open
   useEffect(() => {
@@ -167,11 +168,13 @@ export default function App() {
   };
 
   const handleApply = async (appData: Omit<LoanApplication, 'id' | 'status' | 'appliedAt'>) => {
+    const telegramUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
     const now = new Date().toISOString();
     const newApp = {
       ...appData,
       status: 'submitted' as const,
       appliedAt: now,
+      telegramUserId,
       statusTimestamps: {
         submitted: now
       }
@@ -192,6 +195,7 @@ export default function App() {
       console.error('Telegram notification error:', err);
     });
 
+    setSelectedAppId(customId);
     handleNav('status');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -294,8 +298,8 @@ export default function App() {
           {activeTab === 'home' && <Dashboard onNavigate={(t) => handleNav(t as Tab)} />}
           {activeTab === 'calculator' && <CalculatorView />}
           {activeTab === 'apply' && <ApplicationForm onSubmit={handleApply} />}
-          {activeTab === 'status' && <LoanStatusView applications={applications} />}
-          {activeTab === 'profile' && <ProfileView applications={applications} onNavigate={(t) => handleNav(t as Tab)} />}
+          {activeTab === 'status' && <LoanStatusView applications={applications} selectedAppId={selectedAppId} />}
+          {activeTab === 'profile' && <ProfileView applications={applications} onNavigate={(t) => handleNav(t as Tab)} onViewApplication={(id) => { setSelectedAppId(id); handleNav('status'); }} />}
           {activeTab === 'promotions' && <PromotionsView />}
           {activeTab === 'contact' && <ContactView />}
         </main>

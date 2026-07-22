@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
@@ -12,5 +12,5 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, "ai-studio-easyapply-7588218e-27a1-4284-9544-6776b83abbc3");
+export const db = initializeFirestore(app, { experimentalForceLongPolling: true }, "ai-studio-easyapply-7588218e-27a1-4284-9544-6776b83abbc3");
 export const auth = getAuth(app);

@@ -8,10 +8,11 @@ import { HFCLogo } from './HFCLogo';
 
 interface Props {
   onNavigate?: (tab: string) => void;
+  onViewApplication?: (id: string) => void;
   applications?: LoanApplication[];
 }
 
-export default function Profile({ onNavigate, applications = [] }: Props) {
+export default function Profile({ onNavigate, onViewApplication, applications = [] }: Props) {
   const { lang, setLang } = useContext(LanguageContext);
   const { settings } = useContext(AppSettingsContext);
   const [tgUser, setTgUser] = useState<TelegramUser | null>(null);
@@ -302,7 +303,13 @@ export default function Profile({ onNavigate, applications = [] }: Props) {
                     return (
                       <div 
                         key={app.id}
-                        className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-2 hover:border-gray-200 transition-colors"
+                        onClick={() => {
+                          setShowMyApplications(false);
+                          if (onViewApplication) {
+                            onViewApplication(app.id);
+                          }
+                        }}
+                        className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-2 hover:border-gray-200 transition-colors cursor-pointer active:scale-[0.98]"
                       >
                         <div className="flex justify-between items-start">
                           <div>

@@ -3,17 +3,21 @@ import { LoanApplication } from '../types';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { formatDate } from '../utils';
 import { useContext } from 'react';
-import { LanguageContext } from '../App';
+import { LanguageContext, AppSettingsContext } from '../App';
 
 interface Props {
   applications: LoanApplication[];
+  selectedAppId?: string | null;
 }
 
-export default function LoanStatus({ applications }: Props) {
+export default function LoanStatus({ applications, selectedAppId }: Props) {
   const { lang } = useContext(LanguageContext);
+  const { settings } = useContext(AppSettingsContext);
   
-  // Get the most recent application
-  const app = applications.length > 0 ? applications[0] : null;
+  // Get the selected application or most recent one
+  const app = selectedAppId 
+    ? (applications.find(a => a.id === selectedAppId) || (applications.length > 0 ? applications[0] : null)) 
+    : (applications.length > 0 ? applications[0] : null);
 
   if (!app) {
     return (
@@ -105,11 +109,37 @@ export default function LoanStatus({ applications }: Props) {
           {getStatusLabel()}
         </div>
         
-        <p className="text-center text-sm text-gray-600 px-2 font-medium mb-8">
+        <p className="text-center text-sm text-gray-600 px-2 font-medium mb-6">
           {app.status === 'rejected' 
             ? (lang === 'EN' ? 'Your application has been rejected.' : 'ពាក្យស្នើសុំរបស់អ្នកត្រូវបានបដិសេធ។')
             : (lang === 'EN' ? 'Your application is currently being processed. We will notify you once there is an update.' : 'ពាក្យស្នើសុំរបស់អ្នកកំពុងត្រូវបានដំណើរការ។ យើងនឹងជូនដំណឹងនៅពេលមានការអាប់ដេត។')}
         </p>
+        
+        {app.status === 'rejected' && app.rejectionReason && (
+          <div className="w-full bg-red-50 border border-red-100 rounded-xl p-4 mb-8">
+            <p className="text-xs font-bold text-red-600 mb-1 uppercase tracking-wider">{lang === 'EN' ? 'Reason for Rejection' : 'មូលហេតុនៃការបដិសេធ'}</p>
+            <p className="text-sm text-red-900">{app.rejectionReason}</p>
+          </div>
+        )}
+
+        <div className="w-full bg-gray-50 rounded-xl p-4 border border-gray-100 mb-8 space-y-2">
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-gray-500 font-medium">ID</span>
+            <span className="font-bold text-gray-900">#{app.id.slice(-6)}</span>
+          </div>
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-gray-500 font-medium">{lang === 'EN' ? 'Amount' : 'ចំនួនប្រាក់'}</span>
+            <span className="font-bold text-red-600">${app.amount.toLocaleString()}</span>
+          </div>
+          {app.productId && (
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-500 font-medium">{lang === 'EN' ? 'Product' : 'ផលិតផល'}</span>
+              <span className="font-bold text-gray-900">
+                {settings.products.find(p => p.id === app.productId)?.[lang === 'EN' ? 'nameEn' : 'nameKh'] || app.productId}
+              </span>
+            </div>
+          )}
+        </div>
 
         <div className="w-full px-2">
           <div className="relative border-l-2 border-gray-100 ml-4 space-y-8 pb-4">
@@ -155,20 +185,22 @@ export default function LoanStatus({ applications }: Props) {
           <div className="w-full mt-6 pt-6 border-t border-gray-100">
             <p className="text-xs font-bold text-gray-500 tracking-wider mb-3 uppercase">{lang === 'EN' ? 'Attached Documents' : 'ឯកសារភ្ជាប់'}</p>
             <div className="space-y-2">
-              {app.documents.map((doc, idx) => (
+              {app.documents.map((doc, idx) => {
+                const docName = doc.includes('|||') ? doc.split('|||')[0] : doc;
+                return (
                 <div key={idx} className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
                   <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center shrink-0">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>
                   </div>
                   <div className="flex-1 overflow-hidden">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{doc}</p>
+                    <p className="text-sm font-semibold text-gray-900 truncate">{docName}</p>
                     <p className="text-xs text-gray-500">{lang === 'EN' ? 'Uploaded' : 'បានបញ្ចូល'}</p>
                   </div>
                   <div className="shrink-0 text-green-500 bg-green-100 p-1.5 rounded-full">
                     <CheckCircle size={14} />
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           </div>
         )}
