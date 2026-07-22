@@ -59,6 +59,56 @@ export default function App() {
   
   const [appSettings, setAppSettings] = useState<AppSettings>(defaultSettings);
   const [applications, setApplications] = useState<LoanApplication[]>([]);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+
+  // Detect focus on form fields to hide bottom nav when virtual keyboard is open
+  useEffect(() => {
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
+        setIsInputFocused(true);
+      }
+    };
+
+    const handleFocusOut = () => {
+      setTimeout(() => {
+        const active = document.activeElement;
+        if (!active || (active.tagName !== 'INPUT' && active.tagName !== 'TEXTAREA' && active.tagName !== 'SELECT')) {
+          setIsInputFocused(false);
+        }
+      }, 100);
+    };
+
+    window.addEventListener('focusin', handleFocusIn);
+    window.addEventListener('focusout', handleFocusOut);
+
+    const initialHeight = window.innerHeight;
+    const handleViewportResize = () => {
+      if (window.visualViewport) {
+        if (window.visualViewport.height < initialHeight * 0.82) {
+          setIsInputFocused(true);
+        }
+      } else if (window.innerHeight < initialHeight * 0.82) {
+        setIsInputFocused(true);
+      }
+    };
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleViewportResize);
+    } else {
+      window.addEventListener('resize', handleViewportResize);
+    }
+
+    return () => {
+      window.removeEventListener('focusin', handleFocusIn);
+      window.removeEventListener('focusout', handleFocusOut);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleViewportResize);
+      } else {
+        window.removeEventListener('resize', handleViewportResize);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (appSettings.appName) {
@@ -240,7 +290,7 @@ export default function App() {
         <div className="min-h-[100dvh] bg-gray-100 font-sans flex justify-center overflow-hidden">
           <Toaster position="top-center" toastOptions={{ className: 'text-sm font-medium rounded-xl shadow-lg border border-gray-100' }} />
         <div className="w-full max-w-[450px] bg-white h-[100dvh] relative shadow-2xl flex flex-col mx-auto border-x border-gray-100">
-        <main className="flex-1 overflow-y-auto bg-gray-50 pb-20">
+        <main className={`flex-1 overflow-y-auto bg-gray-50 ${isInputFocused ? 'pb-6' : 'pb-20'}`}>
           {activeTab === 'home' && <Dashboard onNavigate={(t) => handleNav(t as Tab)} />}
           {activeTab === 'calculator' && <CalculatorView />}
           {activeTab === 'apply' && <ApplicationForm onSubmit={handleApply} />}
@@ -250,7 +300,7 @@ export default function App() {
           {activeTab === 'contact' && <ContactView />}
         </main>
 
-        <nav className="bg-white border-t border-gray-200 flex justify-around py-2.5 pb-safe z-20 absolute bottom-0 w-full shadow-[0_-5px_15px_-5px_rgba(0,0,0,0.05)]">
+        <nav className={`bg-white border-t border-gray-200 justify-around py-2.5 pb-safe z-20 absolute bottom-0 w-full shadow-[0_-5px_15px_-5px_rgba(0,0,0,0.05)] transition-all duration-200 ${isInputFocused ? 'hidden pointer-events-none opacity-0' : 'flex opacity-100'}`}>
           {navItems.map((item) => {
             const isActive = activeTab === item.id || (['apply', 'promotions', 'contact'].includes(activeTab) && item.id === 'home');
             return (
