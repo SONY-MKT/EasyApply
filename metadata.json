@@ -1,0 +1,6 @@
+{
+  "name": "EasyApply",
+  "description": "A comprehensive loan application portal with an interest calculator, online document upload, Telegram notifications, and status tracking dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

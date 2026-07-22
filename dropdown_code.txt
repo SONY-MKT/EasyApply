@@ -1,0 +1,45 @@
+const StatusDropdown = ({ value, onChange }: { value: LoanApplication['status'], onChange: (v: LoanApplication['status']) => void }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const statuses: { value: LoanApplication['status'], label: string }[] = [
+    { value: 'submitted', label: 'Submitted' },
+    { value: 'reviewing', label: 'Reviewing' },
+    { value: 'approved', label: 'Approved' },
+    { value: 'rejected', label: 'Rejected' },
+    { value: 'disbursed', label: 'Disbursed' }
+  ];
+
+  return (
+    <div className="relative inline-block text-left" ref={containerRef}>
+      <div onClick={() => setIsOpen(!isOpen)} className="cursor-pointer">
+        {getStatusBadge(value)}
+      </div>
+      {isOpen && (
+        <div className="origin-top-right absolute right-0 mt-2 w-40 rounded-xl shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 z-50">
+          <div className="py-1">
+            {statuses.map(s => (
+              <div 
+                key={s.value} 
+                onClick={() => { onChange(s.value); setIsOpen(false); }}
+                className={`px-4 py-2 text-sm cursor-pointer hover:bg-gray-50 flex items-center gap-2 ${value === s.value ? 'bg-gray-50 font-bold' : 'text-gray-700 font-medium'}`}
+              >
+                {getStatusBadge(s.value)}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

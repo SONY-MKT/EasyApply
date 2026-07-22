@@ -1,0 +1,2 @@
+sed -i "s/import { User, ChevronRight, Bell, Globe, Info, X, LogOut, Trash2 } from 'lucide-react';/import { User, ChevronRight, Bell, Globe, Info, X, LogOut, Trash2, FileText } from 'lucide-react';/" src/components/Profile.tsx
+sed -i "s/import { User, ChevronRight, Bell, Globe, Info, X } from 'lucide-react';/import { User, ChevronRight, Bell, Globe, Info, X, LogOut, Trash2, FileText } from 'lucide-react';/" src/components/Profile.tsx

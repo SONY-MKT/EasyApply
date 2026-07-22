@@ -1,0 +1,1 @@
+sed -i 's/contactEmail: '\''info@hfcmicrofinance.com.kh'\'',/contactEmail: '\''info@hfcmicrofinance.com.kh'\'',\n  contactLiveChatUrl: '\''https:\/\/t.me\/hfc_support'\'',\n  contactBranchUrl: '\''https:\/\/goo.gl\/maps\/hfc'\'',/' src/defaultSettings.ts

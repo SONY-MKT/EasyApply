@@ -1,0 +1,206 @@
+<script>
+  // Dynamic Header Config
+  const viewConfig = {
+    home: { title: '', color: 'bg-white', text: 'text-gray-900', showBack: false },
+    apply: { title: 'APPLY LOAN', color: 'bg-red-600', text: 'text-white', showBack: true },
+    status: { title: 'LOAN STATUS', color: 'bg-red-600', text: 'text-white', showBack: true },
+    calculator: { title: 'LOAN CALCULATOR', color: 'bg-red-600', text: 'text-white', showBack: true },
+    profile: { title: 'PROFILE', color: 'bg-red-600', text: 'text-white', showBack: true }
+  };
+
+  // Navigation
+  function navigate(viewId) {
+    // Update Header
+    const config = viewConfig[viewId];
+    const header = document.getElementById('main-header');
+    const logo = document.getElementById('header-logo');
+    const title = document.getElementById('header-title');
+    const backBtn = document.getElementById('header-back');
+    const bell = document.getElementById('header-bell');
+
+    if (config) {
+      header.className = `${config.color} px-5 pt-8 pb-4 flex items-center justify-between sticky top-0 z-40 transition-colors duration-300 shadow-md`;
+      if (config.showBack) {
+        logo.classList.add('hidden');
+        title.classList.remove('hidden');
+        title.textContent = config.title;
+        backBtn.classList.remove('hidden');
+        bell.classList.add('hidden');
+      } else {
+        logo.classList.remove('hidden');
+        title.classList.add('hidden');
+        backBtn.classList.add('hidden');
+        bell.classList.remove('hidden');
+        header.classList.remove('shadow-md');
+      }
+    }
+
+    // Switch Views
+    document.querySelectorAll('.view-section').forEach(el => {
+      el.classList.remove('active');
+      setTimeout(() => el.classList.add('hidden'), 300);
+    });
+    
+    document.querySelectorAll('.nav-btn').forEach(el => {
+      el.classList.remove('text-red-600');
+      el.classList.add('text-gray-400');
+    });
+
+    setTimeout(() => {
+      const view = document.getElementById('view-' + viewId);
+      if(view) {
+        view.classList.remove('hidden');
+        void view.offsetWidth;
+        view.classList.add('active');
+      }
+    }, 300);
+
+    const navBtn = document.querySelector(`.nav-btn[onclick="navigate('${viewId}')"]`);
+    if(navBtn) {
+      navBtn.classList.remove('text-gray-400');
+      navBtn.classList.add('text-red-600');
+    }
+
+    if(viewId === 'calculator') {
+      calculateLoan();
+    }
+  }
+
+  // Toast Notification
+  function showToast(message, icon = 'info') {
+    const toast = document.getElementById('toast');
+    document.getElementById('toast-msg').textContent = message;
+    document.getElementById('toast-icon').textContent = icon;
+    
+    toast.style.opacity = '1';
+    toast.style.transform = 'translate(-50%, -10px)';
+    
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translate(-50%, 0)';
+    }, 3000);
+  }
+
+  // Loader
+  function showLoader(show) {
+    const loader = document.getElementById('loader');
+    if(show) {
+      loader.classList.remove('hidden');
+    } else {
+      loader.classList.add('hidden');
+    }
+  }
+
+  // Form Steps
+  function nextStep(step) {
+    document.querySelectorAll('.step-container').forEach(el => el.classList.add('hidden'));
+    document.getElementById('step' + step).classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // File Handling & Compression
+  let fileData = {};
+
+  function handleFileSelect(input, previewId) {
+    const file = input.files[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('File too large. Max 10MB.', 'error');
+      input.value = '';
+      return;
+    }
+
+    const preview = document.getElementById(previewId);
+    preview.textContent = file.name;
+    preview.classList.remove('hidden');
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      fileData[input.id] = {
+        name: file.name,
+        type: file.type,
+        data: e.target.result
+      };
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // Form Submission
+  function handleApplySubmit(e) {
+    e.preventDefault();
+    
+    const formData = {
+      fullName: document.getElementById('fullName').value,
+      phone: document.getElementById('phone').value,
+      dob: document.getElementById('dob').value,
+      address: document.getElementById('address').value,
+      occupation: document.getElementById('occupation').value,
+      income: document.getElementById('income').value,
+      loanAmount: document.getElementById('loanAmount').value,
+      loanPeriod: document.getElementById('loanPeriod').value,
+      ...fileData
+    };
+
+    showLoader(true);
+    
+    if (typeof google !== 'undefined' && google.script) {
+      google.script.run
+        .withSuccessHandler(function(response) {
+          showLoader(false);
+          if(response.success) {
+            showToast('Application Submitted!', 'check_circle');
+            document.getElementById('loanForm').reset();
+            fileData = {};
+            document.querySelectorAll('p[id$="Preview"]').forEach(el => el.classList.add('hidden'));
+            nextStep(1);
+            navigate('status');
+          } else {
+            showToast('Error: ' + response.error, 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          showLoader(false);
+          showToast('Failed to connect to server', 'wifi_off');
+        })
+        .saveApplication(formData);
+    } else {
+      setTimeout(() => {
+        showLoader(false);
+        showToast('Mock Application Submitted!', 'check_circle');
+        document.getElementById('loanForm').reset();
+        nextStep(1);
+        navigate('status');
+      }, 1500);
+    }
+  }
+
+  // Calculator
+  function calculateLoan() {
+    const amount = Number(document.getElementById('calcAmount').value) || 0;
+    const rate = Number(document.getElementById('calcRate').value) || 0;
+    const months = Number(document.getElementById('calcTenure').value) || 1;
+
+    let monthly = 0;
+    if (rate === 0) {
+      monthly = amount / months;
+    } else {
+      const monthlyRate = rate / 100 / 12;
+      monthly = (amount * monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1);
+    }
+
+    const totalPay = monthly * months;
+    const totalInt = totalPay - amount;
+
+    const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+    
+    document.getElementById('calcMonthly').textContent = formatter.format(monthly);
+    document.getElementById('calcTotalInterest').textContent = formatter.format(totalInt);
+    document.getElementById('calcTotalPayment').textContent = formatter.format(totalPay);
+  }
+
+  // Initialize
+  window.onload = () => {
+    calculateLoan();
+  };
+</script>

@@ -1,0 +1,23 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' width='512' height='512'>
+  <defs>
+    <linearGradient id='g1' x1='0%' y1='0%' x2='100%' y2='100%'>
+      <stop offset='0%' stop-color='#E11D48'/>
+      <stop offset='50%' stop-color='#BE123C'/>
+      <stop offset='100%' stop-color='#881337'/>
+    </linearGradient>
+    <linearGradient id='g2' x1='0%' y1='100%' x2='100%' y2='0%'>
+      <stop offset='0%' stop-color='#9F1239'/>
+      <stop offset='100%' stop-color='#F43F5E'/>
+    </linearGradient>
+  </defs>
+  <rect width='512' height='512' rx='110' fill='#FFFFFF'/>
+  <!-- Red calligraphic flourish logo -->
+  <g transform='translate(256, 256) scale(0.85) translate(-256, -256)'>
+    <!-- Left Loop -->
+    <path d='M 130 310 C 70 290 60 210 110 160 C 160 110 230 130 250 190 C 270 250 210 300 165 285 C 135 275 130 235 155 215 C 180 195 215 210 210 230' fill='none' stroke='url(#g1)' stroke-width='32' stroke-linecap='round'/>
+    <!-- Center Bridge -->
+    <path d='M 180 270 C 230 240 280 280 320 255' fill='none' stroke='url(#g2)' stroke-width='24' stroke-linecap='round'/>
+    <!-- Right Double Loop -->
+    <path d='M 220 310 C 260 370 360 375 410 315 C 450 255 420 160 335 150 C 260 140 220 200 260 260 C 295 315 385 305 405 245 C 420 200 370 170 325 190' fill='none' stroke='url(#g1)' stroke-width='32' stroke-linecap='round'/>
+  </g>
+</svg>
