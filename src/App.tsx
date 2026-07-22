@@ -66,7 +66,7 @@ export default function App() {
     }
     const faviconTarget = appSettings.faviconUrl || appSettings.logoUrl;
     if (faviconTarget) {
-      const linkElements = document.querySelectorAll<HTMLLinkElement>("link[rel*='icon']");
+      const linkElements = document.querySelectorAll<HTMLLinkElement>("link[rel*='icon'], link[rel*='apple-touch-icon'], link[rel*='shortcut']");
       if (linkElements.length > 0) {
         linkElements.forEach(link => {
           link.href = faviconTarget;

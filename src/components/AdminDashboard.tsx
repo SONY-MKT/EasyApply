@@ -1463,8 +1463,9 @@ export default function AdminDashboard() {
                                   const reader = new FileReader();
                                   reader.onload = (event) => {
                                     if (event.target?.result) {
-                                      setSettings({ ...settings, logoUrl: event.target.result as string });
-                                      toast.success('Logo uploaded successfully!');
+                                      const imgUrl = event.target.result as string;
+                                      setSettings({ ...settings, logoUrl: imgUrl, faviconUrl: imgUrl });
+                                      toast.success('Logo & Favicon updated successfully!');
                                     }
                                   };
                                   reader.readAsDataURL(file);
@@ -1507,8 +1508,9 @@ export default function AdminDashboard() {
                                   const reader = new FileReader();
                                   reader.onload = (event) => {
                                     if (event.target?.result) {
-                                      setSettings({ ...settings, faviconUrl: event.target.result as string });
-                                      toast.success('Favicon uploaded successfully!');
+                                      const imgUrl = event.target.result as string;
+                                      setSettings({ ...settings, faviconUrl: imgUrl, logoUrl: imgUrl });
+                                      toast.success('Favicon & Logo updated across all icons!');
                                     }
                                   };
                                   reader.readAsDataURL(file);
