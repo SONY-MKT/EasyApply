@@ -32,22 +32,38 @@ export const sendTelegramNotification = async (settings: AppSettings, app: LoanA
   
   const productName = app.productId ? (settings.products?.find(p => p.id === app.productId)?.nameKh || app.productId) : 'មិនមាន';
 
-  const message = `
+  const defaultNewAppMessage = `
 🚨 <b>ពាក្យស្នើសុំប្រាក់កម្ចីថ្មី</b>
 
-👤 <b>ឈ្មោះ:</b> ${app.applicantName || 'មិនមាន'}
-📞 <b>ទូរស័ព្ទ:</b> <code>${app.phone || 'មិនមាន'}</code>
-💵 <b>ចំនួនប្រាក់:</b> <b>${formattedAmount}</b>
-⏱️ <b>រយៈពេល:</b> ${app.termMonths} ខែ
-📦 <b>ប្រភេទផលិតផល:</b> ${productName}
-💼 <b>មុខរបរ:</b> ${app.occupation || 'មិនមាន'}
-🏢 <b>ក្រុមហ៊ុន:</b> ${app.companyName || 'មិនមាន'}
-💰 <b>ប្រាក់ចំណូល:</b> ${formattedIncome}
-📍 <b>អាសយដ្ឋាន:</b> ${app.address || 'មិនមាន'}
-📄 <b>ឯកសារ:</b> ${docCount} ឯកសារ
-📅 <b>កាលបរិច្ឆេទ:</b> ${appliedDateStr}
-🆔 <b>ID:</b> <code>${app.id}</code>
-`;
+👤 <b>ឈ្មោះ:</b> {{name}}
+📞 <b>ទូរស័ព្ទ:</b> <code>{{phone}}</code>
+💵 <b>ចំនួនប្រាក់:</b> <b>{{amount}}</b>
+⏱️ <b>រយៈពេល:</b> {{term}} ខែ
+📦 <b>ប្រភេទផលិតផល:</b> {{product}}
+💼 <b>មុខរបរ:</b> {{occupation}}
+🏢 <b>ក្រុមហ៊ុន:</b> {{company}}
+💰 <b>ប្រាក់ចំណូល:</b> {{income}}
+📍 <b>អាសយដ្ឋាន:</b> {{address}}
+📄 <b>ឯកសារ:</b> {{docs}} ឯកសារ
+📅 <b>កាលបរិច្ឆេទ:</b> {{date}}
+🆔 <b>ID:</b> <code>{{id}}</code>
+`.trim();
+
+  let messageTemplate = settings.botNewApplicationMessage || defaultNewAppMessage;
+
+  const message = messageTemplate
+    .replace(/\{\{name\}\}/g, app.applicantName || 'មិនមាន')
+    .replace(/\{\{phone\}\}/g, app.phone || 'មិនមាន')
+    .replace(/\{\{amount\}\}/g, formattedAmount)
+    .replace(/\{\{term\}\}/g, String(app.termMonths))
+    .replace(/\{\{product\}\}/g, productName)
+    .replace(/\{\{occupation\}\}/g, app.occupation || 'មិនមាន')
+    .replace(/\{\{company\}\}/g, app.companyName || 'មិនមាន')
+    .replace(/\{\{income\}\}/g, formattedIncome)
+    .replace(/\{\{address\}\}/g, app.address || 'មិនមាន')
+    .replace(/\{\{docs\}\}/g, String(docCount))
+    .replace(/\{\{date\}\}/g, appliedDateStr)
+    .replace(/\{\{id\}\}/g, app.id);
 
   try {
     const url = `https://api.telegram.org/bot${token}/sendMessage`;
@@ -117,16 +133,31 @@ export const sendTelegramStatusUpdateNotification = async (settings: AppSettings
 
   const productName = app.productId ? (settings.products?.find(p => p.id === app.productId)?.nameKh || app.productId) : 'មិនមាន';
 
-  let userMessage = `
-🔔 <b>ជម្រាបសួរ ${app.applicantName || 'អ្នកស្នើសុំ'},</b>
+  const defaultMessageTemplate = `
+🔔 <b>ជម្រាបសួរ {{name}},</b>
 ពាក្យស្នើសុំប្រាក់កម្ចីរបស់អ្នកត្រូវបានផ្លាស់ប្តូរស្ថានភាព។
 
-🆔 <b>ID:</b> <code>${app.id}</code>
-📦 <b>ប្រភេទផលិតផល:</b> ${productName}
-💵 <b>ចំនួនប្រាក់:</b> <b>${formattedAmount}</b>
+🆔 <b>ID:</b> <code>{{id}}</code>
+📦 <b>ប្រភេទផលិតផល:</b> {{product}}
+💵 <b>ចំនួនប្រាក់:</b> <b>{{amount}}</b>
 
-${statusEmoji} <b>ស្ថានភាពថ្មី:</b> <b>${statusText}</b>${newStatus === 'rejected' && reason ? `\n📝 <b>មូលហេតុ:</b> ${reason}` : ''}${adminName ? `\n\n👨‍💼 <b>អ្នកធ្វើបច្ចុប្បន្នភាព:</b> ${adminName}` : ''}
-`;
+{{emoji}} <b>ស្ថានភាពថ្មី:</b> <b>{{status}}</b>{{reason}}{{admin}}
+`.trim();
+
+  let messageTemplate = settings.botStatusUpdateMessage || defaultMessageTemplate;
+  
+  const reasonText = newStatus === 'rejected' && reason ? `\n📝 <b>មូលហេតុ:</b> ${reason}` : '';
+  const adminText = adminName ? `\n\n👨‍💼 <b>អ្នកធ្វើបច្ចុប្បន្នភាព:</b> ${adminName}` : '';
+
+  let userMessage = messageTemplate
+    .replace(/\{\{name\}\}/g, app.applicantName || 'អ្នកស្នើសុំ')
+    .replace(/\{\{id\}\}/g, app.id)
+    .replace(/\{\{product\}\}/g, productName)
+    .replace(/\{\{amount\}\}/g, formattedAmount)
+    .replace(/\{\{emoji\}\}/g, statusEmoji)
+    .replace(/\{\{status\}\}/g, statusText)
+    .replace(/\{\{reason\}\}/g, reasonText)
+    .replace(/\{\{admin\}\}/g, adminText);
 
   try {
     const url = `https://api.telegram.org/bot${token}/sendMessage`;
@@ -217,7 +248,7 @@ export const registerTelegramWebhook = async (botToken: string, domain: string):
       return { success: false, message: 'Failed to start polling for preview.' };
     }
 
-    const webhookUrl = `${domain}/api/webhook/${token}`;
+    const cleanDomain = domain.replace(/\/+$/, ""); const webhookUrl = `${cleanDomain}/api/webhook/${token}`;
     const url = `https://api.telegram.org/bot${token}/setWebhook?url=${encodeURIComponent(webhookUrl)}`;
     
     const res = await fetch(url, { method: 'GET' });

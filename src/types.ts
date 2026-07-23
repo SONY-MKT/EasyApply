@@ -93,8 +93,11 @@ export interface AppSettings {
   products: Product[];
   telegramBotToken?: string;
   telegramChatId?: string;
+  telegramWebhookDomain?: string;
   enableTelegramNotify?: boolean;
   botWelcomeMessage?: string;
+  botStatusUpdateMessage?: string;
+  botNewApplicationMessage?: string;
   telegramButtons?: TelegramButton[];
 }
 
