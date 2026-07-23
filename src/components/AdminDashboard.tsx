@@ -1841,9 +1841,11 @@ export default function AdminDashboard() {
                       onClick={async () => {
                         setIsRegisteringWebhook(true);
                         const domain = settings.telegramWebhookDomain?.trim() || window.location.origin;
+                        const origin = window.location.origin;
                         const res = await registerTelegramWebhook(
                           settings.telegramBotToken || '',
-                          domain
+                          domain,
+                          origin
                         );
                         setIsRegisteringWebhook(false);
                         if (res.success) {

@@ -229,7 +229,7 @@ export const testTelegramNotification = async (botToken: string, chatId: string)
   }
 };
 
-export const registerTelegramWebhook = async (botToken: string, domain: string): Promise<{ success: boolean; message: string }> => {
+export const registerTelegramWebhook = async (botToken: string, domain: string, currentOrigin?: string): Promise<{ success: boolean; message: string }> => {
   const token = botToken.trim();
   if (!token) return { success: false, message: 'Please enter a valid Telegram Bot Token.' };
 
@@ -237,8 +237,9 @@ export const registerTelegramWebhook = async (botToken: string, domain: string):
     const cleanDomain = domain.replace(/\/+$/, ""); 
     const webhookUrl = `${cleanDomain}/api/webhook/${token}`;
 
-    if (domain.includes('ais-dev') || domain.includes('localhost')) {
-      // AI Studio Preview blocks external webhooks, use our custom polling endpoint instead
+    const hostToCheck = currentOrigin || domain;
+    if (hostToCheck.includes('ais-dev') || hostToCheck.includes('ais-pre') || hostToCheck.includes('localhost')) {
+      // AI Studio Preview & Shared apps block external webhooks, use our custom polling endpoint instead
       // Delete any existing webhook to allow getUpdates to work
       await fetch(`https://api.telegram.org/bot${token}/deleteWebhook`);
 
@@ -249,9 +250,9 @@ export const registerTelegramWebhook = async (botToken: string, domain: string):
       });
       const data = await res.json();
       if (data.success) {
-        return { success: true, message: 'Preview Mode: Started polling successfully instead of webhook!' };
+        return { success: true, message: 'App is in Preview/Publish Mode: Started Polling successfully!' };
       }
-      return { success: false, message: 'Failed to start polling for preview.' };
+      return { success: false, message: 'Failed to start polling.' };
     }
 
     const url = `https://api.telegram.org/bot${token}/setWebhook?url=${encodeURIComponent(webhookUrl)}&drop_pending_updates=true`;
