@@ -55,5 +55,23 @@ export const defaultSettings: AppSettings = {
   ],
   telegramBotToken: '',
   telegramChatId: '',
-  enableTelegramNotify: false
+  enableTelegramNotify: false,
+  botWelcomeMessage: `✨ <b>សូមស្វាគមន៍មកកាន់ EasyApply!</b>
+
+យើងខ្ញុំផ្តល់ជូនសេវាកម្មកម្ចីប្រាក់ <b>រហ័សទាន់ចិត្ត</b> ⚡️ លក្ខខណ្ឌងាយៗ និងមានទំនុកចិត្តខ្ពស់។ 🤝
+
+🎯 <b>របៀបប្រើប្រាស់៖</b>
+1️⃣ ចុចប៊ូតុងខាងក្រោមដើម្បី <b>បើកកម្មវិធី</b> (Open App) 🚀
+2️⃣ បំពេញព័ត៌មានរបស់អ្នកក្នុងទម្រង់ស្នើសុំ 📝
+3️⃣ រង់ចាំការទាក់ទងត្រឡប់ពីក្រុមការងារយើងខ្ញុំ 📞
+
+<i>សូមអរគុណដែលបានជ្រើសរើសសេវាកម្មរបស់យើងខ្ញុំ! 🙏</i>`,
+  telegramButtons: [
+    {
+      id: 'default-app-btn',
+      text: '🚀 បើកកម្មវិធី (Open App)',
+      type: 'web_app',
+      url: ''
+    }
+  ]
 };

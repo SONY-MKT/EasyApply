@@ -44,11 +44,14 @@ declare global {
   interface Window {
     Telegram?: {
       WebApp: {
+        version?: string;
         initDataUnsafe: {
           user?: TelegramUser;
         };
         ready: () => void;
         expand: () => void;
+        isVersionAtLeast?: (version: string) => boolean;
+        requestWriteAccess?: (callback?: (accessGranted: boolean) => void) => void;
         BackButton: {
           show: () => void;
           hide: () => void;
@@ -91,6 +94,15 @@ export interface AppSettings {
   telegramBotToken?: string;
   telegramChatId?: string;
   enableTelegramNotify?: boolean;
+  botWelcomeMessage?: string;
+  telegramButtons?: TelegramButton[];
+}
+
+export interface TelegramButton {
+  id: string;
+  text: string;
+  type: 'web_app' | 'url';
+  url?: string;
 }
 
 export interface Product {

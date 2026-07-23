@@ -6,7 +6,7 @@ import { defaultSettings } from '../defaultSettings';
 import { subscribeToSettings, subscribeToApplications, updateApplication, deleteApplication as dbDeleteApplication, updateSettings, subscribeToLogs, addActivityLog } from '../lib/db';
 import { RichTextEditor } from './RichTextEditor';
 import XLSX from 'xlsx-js-style';
-import { Search, ChevronDown, CheckCircle, XCircle, Clock, Trash2, Edit, LayoutDashboard, FileText, Settings, Eye, EyeOff, Download, X, Lock, Megaphone, PhoneCall, GripVertical, Users, UserPlus, Image, Box, User, Filter, ChevronLeft, ChevronRight, Activity, Upload, LogOut, FileSpreadsheet, Table, Send, CalendarDays, DollarSign, ShieldCheck, ArrowLeft, LogIn, AlertCircle, KeyRound, Menu } from 'lucide-react';
+import { Search, ChevronDown, CheckCircle, XCircle, Clock, Trash2, Edit, LayoutDashboard, FileText, Settings, Eye, EyeOff, Download, X, Lock, Megaphone, PhoneCall, GripVertical, Users, UserPlus, Image, Box, User, Filter, ChevronLeft, ChevronRight, Activity, Upload, LogOut, FileSpreadsheet, Table, Send, CalendarDays, DollarSign, ShieldCheck, ArrowLeft, LogIn, AlertCircle, KeyRound, Menu, Plus } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Legend, Cell, PieChart, Pie } from 'recharts';
 import AmortizationScheduleModal from './AmortizationScheduleModal';
 import { testTelegramNotification, sendTelegramStatusUpdateNotification, registerTelegramWebhook } from '../lib/telegram';
@@ -314,7 +314,16 @@ export default function AdminDashboard() {
       toast.success('Status updated successfully');
       logActivity('Update Status', `Updated application ${id} to ${newStatus}`);
 
-      sendTelegramStatusUpdateNotification(settings, appToUpdate, newStatus, reason);
+      const notifyResult = await sendTelegramStatusUpdateNotification(settings, appToUpdate, newStatus, reason, currentUser?.name);
+      if (!notifyResult) {
+        if (!appToUpdate.telegramUserId) {
+          toast.info("No Telegram ID linked to this application");
+        } else {
+          toast.error("Failed to send Telegram notification");
+        }
+      } else {
+        toast.success("Notification sent to user");
+      }
       
       if (selectedApp && selectedApp.id === id) {
         setSelectedApp({
@@ -1008,6 +1017,13 @@ export default function AdminDashboard() {
                 <Settings size={20} />
                 Settings
               </button>
+              <button 
+                onClick={() => { setActiveTab('telegram'); setIsMobileMenuOpen(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors ${activeTab === 'telegram' ? 'bg-sky-50 text-sky-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
+              >
+                <Send size={20} />
+                Telegram Bot
+              </button>
             </>
           )}
         </nav>
@@ -1045,7 +1061,7 @@ export default function AdminDashboard() {
               <Menu size={24} />
             </button>
             <h2 className="text-xl lg:text-2xl font-bold text-gray-800 tracking-tight">
-              {activeTab === 'dashboard' ? 'Overview' : activeTab === 'settings' ? 'Settings' : activeTab === 'products' ? 'Products' : activeTab === 'promotions' ? 'Promotions' : activeTab === 'users' ? 'Users Management' : activeTab === 'contact' ? 'Contact Information' : 'Loan Applications'}
+              {activeTab === 'dashboard' ? 'Overview' : activeTab === 'settings' ? 'Settings' : activeTab === 'telegram' ? 'Telegram Bot Configuration' : activeTab === 'products' ? 'Products' : activeTab === 'promotions' ? 'Promotions' : activeTab === 'users' ? 'Users Management' : activeTab === 'contact' ? 'Contact Information' : 'Loan Applications'}
             </h2>
           </div>
           {activeTab === 'applications' && (
@@ -1730,19 +1746,38 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* Telegram Notification Configuration */}
-                  <div className="mt-8 pt-6 border-t border-gray-200 space-y-5">
-                    <div className="flex items-center justify-between">
+                  <div className="pt-6 border-t border-gray-100 flex justify-end">
+                    <button type="submit" className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors shadow-sm">
+                      Save Settings
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'telegram' && (
+            <motion.div key="telegram" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }} className="bg-white rounded-2xl shadow-sm border border-gray-200">
+              <div className="p-6 border-b border-gray-100 flex items-center gap-4 bg-sky-50/50 rounded-t-2xl">
+                <div className="w-12 h-12 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center">
+                  <Send size={24} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Telegram Configuration</h2>
+                  <p className="text-sm text-gray-500">Manage Telegram bot webhook, notification and welcome message settings</p>
+                </div>
+              </div>
+
+              <div className="p-6">
+                <form onSubmit={handleSettingsSave} className="space-y-8">
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between bg-sky-50 p-4 rounded-xl border border-sky-100">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center shrink-0">
-                          <Send size={20} />
-                        </div>
                         <div>
-                          <h3 className="text-base font-bold text-gray-900">Telegram Bot Notifications (ការជូនដំណឹងតាម Telegram)</h3>
-                          <p className="text-xs text-gray-500">ទទួលបានការជូនដំណឹងភ្លាមៗតាម Telegram Chat/Group នៅពេលមានពាក្យស្នើសុំថ្មី</p>
+                          <h3 className="text-sm font-bold text-gray-900">Enable Order Notifications</h3>
+                          <p className="text-xs text-gray-500">Receive new applications via Telegram chat instantly</p>
                         </div>
                       </div>
-
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
                           type="checkbox"
@@ -1754,10 +1789,10 @@ export default function AdminDashboard() {
                       </label>
                     </div>
 
-                    <div className="bg-sky-50/50 p-5 rounded-2xl border border-sky-100 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                          Telegram Bot Token <span className="text-gray-400 font-normal">(បានពី @BotFather)</span>
+                          Telegram Bot Token
                         </label>
                         <input
                           type="password"
@@ -1770,7 +1805,7 @@ export default function AdminDashboard() {
 
                       <div>
                         <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                          Telegram Chat ID / Channel ID <span className="text-gray-400 font-normal">(បានពី @userinfobot ឬ Group ID -100xxx)</span>
+                          Telegram Chat ID / Channel ID
                         </label>
                         <input
                           type="text"
@@ -1780,68 +1815,149 @@ export default function AdminDashboard() {
                           className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-mono focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
                         />
                       </div>
+                    </div>
 
-                      <div className="pt-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                        <div className="text-[11px] text-gray-500 space-y-0.5">
-                          <div>• បង្កើត Bot តាមរយៈ <b>@BotFather</b> រួចចម្លង HTTP API Token</div>
-                          <div>• បន្ថែម Bot ចូលក្នុង Group/Channel រួចកំណត់អោយជា Admin</div>
-                        </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                        សារស្វាគមន៍អូតូ (Bot Welcome Message)
+                      </label>
+                      <textarea
+                        rows={10}
+                        value={settings.botWelcomeMessage || ''}
+                        onChange={(e) => setSettings({ ...settings, botWelcomeMessage: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
+                        placeholder="Welcome message supporting HTML format"
+                      />
+                    </div>
 
-                        <div className="flex flex-wrap gap-2">
-                          <button
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                         <label className="block text-xs font-semibold text-gray-700">Bot Buttons (Inline Keyboard)</label>
+                         <button
                             type="button"
-                            disabled={isTestingTelegram || !settings.telegramBotToken || !settings.telegramChatId}
-                            onClick={async () => {
-                              setIsTestingTelegram(true);
-                              const res = await testTelegramNotification(
-                                settings.telegramBotToken || '',
-                                settings.telegramChatId || ''
-                              );
-                              setIsTestingTelegram(false);
-                              if (res.success) {
-                                toast.success(res.message);
-                                logActivity('Test Telegram Notification', 'Successfully sent test notification to Telegram chat');
-                              } else {
-                                toast.error(res.message);
-                              }
+                            onClick={() => {
+                               const newBtns = [...(settings.telegramButtons || [])];
+                               newBtns.push({ id: Date.now().toString(), text: 'New Button', type: 'web_app', url: '' });
+                               setSettings({ ...settings, telegramButtons: newBtns });
                             }}
-                            className="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-semibold rounded-xl text-xs flex items-center gap-2 transition-all shadow-sm shrink-0"
-                          >
-                            <Send size={14} />
-                            <span>{isTestingTelegram ? 'កំពុងសាកល្បង...' : 'សាកល្បងផ្ញើសារ (Test Bot)'}</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            disabled={isRegisteringWebhook || !settings.telegramBotToken}
-                            onClick={async () => {
-                              setIsRegisteringWebhook(true);
-                              const res = await registerTelegramWebhook(
-                                settings.telegramBotToken || '',
-                                window.location.origin
-                              );
-                              setIsRegisteringWebhook(false);
-                              if (res.success) {
-                                toast.success(res.message);
-                                logActivity('Register Telegram Webhook', 'Successfully registered Telegram Webhook');
-                              } else {
-                                toast.error(res.message);
-                              }
-                            }}
-                            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold rounded-xl text-xs flex items-center gap-2 transition-all shadow-sm shrink-0"
-                          >
-                            <Activity size={14} />
-                            <span>{isRegisteringWebhook ? 'កំពុងចុះឈ្មោះ...' : 'Register Webhook'}</span>
-                          </button>
-                        </div>
+                            className="text-xs font-semibold text-sky-600 hover:text-sky-700 flex items-center gap-1 bg-sky-50 px-2 py-1 rounded-md"
+                         >
+                            <Plus size={14} /> Add Button
+                         </button>
+                      </div>
+                      <div className="space-y-2">
+                        {(settings.telegramButtons || []).map((btn, index) => (
+                           <div key={btn.id} className="flex flex-col md:flex-row gap-2 items-center bg-gray-50 p-3 rounded-xl border border-gray-100">
+                             <div className="flex-1 w-full flex items-center gap-2">
+                               <GripVertical size={16} className="text-gray-400 cursor-move shrink-0" />
+                               <input 
+                                 type="text" 
+                                 placeholder="Button Text"
+                                 value={btn.text}
+                                 onChange={(e) => {
+                                    const newBtns = [...(settings.telegramButtons || [])];
+                                    newBtns[index].text = e.target.value;
+                                    setSettings({ ...settings, telegramButtons: newBtns });
+                                 }}
+                                 className="w-1/3 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm"
+                               />
+                               <select 
+                                 value={btn.type}
+                                 onChange={(e) => {
+                                    const newBtns = [...(settings.telegramButtons || [])];
+                                    newBtns[index].type = e.target.value as 'web_app' | 'url';
+                                    setSettings({ ...settings, telegramButtons: newBtns });
+                                 }}
+                                 className="w-1/4 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm"
+                               >
+                                 <option value="web_app">Web App</option>
+                                 <option value="url">URL Link</option>
+                               </select>
+                               <input 
+                                 type="text" 
+                                 placeholder={btn.type === 'web_app' ? 'Leave empty for default Web App' : 'https://...'}
+                                 value={btn.url || ''}
+                                 onChange={(e) => {
+                                    const newBtns = [...(settings.telegramButtons || [])];
+                                    newBtns[index].url = e.target.value;
+                                    setSettings({ ...settings, telegramButtons: newBtns });
+                                 }}
+                                 className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm"
+                               />
+                             </div>
+                             <button
+                               type="button"
+                               onClick={() => {
+                                  const newBtns = (settings.telegramButtons || []).filter(b => b.id !== btn.id);
+                                  setSettings({ ...settings, telegramButtons: newBtns });
+                               }}
+                               className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg shrink-0"
+                             >
+                               <Trash2 size={16} />
+                             </button>
+                           </div>
+                        ))}
+                        {(!settings.telegramButtons || settings.telegramButtons.length === 0) && (
+                          <div className="text-xs text-gray-500 text-center py-4 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                             No buttons added yet.
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  <div className="pt-6 border-t border-gray-100 flex justify-end">
-                    <button type="submit" className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors shadow-sm">
-                      Save Settings
+                  <div className="flex flex-wrap items-center gap-3 pt-6 border-t border-gray-100">
+                    <button
+                      type="button"
+                      disabled={isTestingTelegram || !settings.telegramBotToken || !settings.telegramChatId}
+                      onClick={async () => {
+                        setIsTestingTelegram(true);
+                        const res = await testTelegramNotification(
+                          settings.telegramBotToken || '',
+                          settings.telegramChatId || ''
+                        );
+                        setIsTestingTelegram(false);
+                        if (res.success) {
+                          toast.success(res.message);
+                          logActivity('Test Telegram Notification', 'Successfully sent test notification to Telegram chat');
+                        } else {
+                          toast.error(res.message);
+                        }
+                      }}
+                      className="px-4 py-2.5 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-semibold rounded-xl text-xs flex items-center gap-2 transition-all shadow-sm"
+                    >
+                      <Send size={14} />
+                      <span>{isTestingTelegram ? 'Testing...' : 'Test Notification'}</span>
                     </button>
+
+                    <button
+                      type="button"
+                      disabled={isRegisteringWebhook || !settings.telegramBotToken}
+                      onClick={async () => {
+                        setIsRegisteringWebhook(true);
+                        const res = await registerTelegramWebhook(
+                          settings.telegramBotToken || '',
+                          window.location.origin
+                        );
+                        setIsRegisteringWebhook(false);
+                        if (res.success) {
+                          toast.success(res.message);
+                          logActivity('Register Telegram Webhook', 'Successfully registered Telegram Webhook');
+                        } else {
+                          toast.error(res.message);
+                        }
+                      }}
+                      className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold rounded-xl text-xs flex items-center gap-2 transition-all shadow-sm"
+                    >
+                      <Activity size={14} />
+                      <span>{isRegisteringWebhook ? 'Registering...' : 'Register Webhook'}</span>
+                    </button>
+
+                    <div className="flex-1 text-right">
+                       <button type="submit" className="px-6 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-bold rounded-xl transition-colors shadow-sm">
+                         Save Configuration
+                       </button>
+                    </div>
                   </div>
                 </form>
               </div>

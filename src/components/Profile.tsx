@@ -16,7 +16,14 @@ export default function Profile({ onNavigate, onViewApplication, applications = 
   const { lang, setLang } = useContext(LanguageContext);
   const { settings } = useContext(AppSettingsContext);
   const [tgUser, setTgUser] = useState<TelegramUser | null>(null);
-  const [notifications, setNotifications] = useState(true);
+  const [notifications, setNotifications] = useState(() => {
+    const saved = localStorage.getItem('easyapply_notifications');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('easyapply_notifications', String(notifications));
+  }, [notifications]);
   
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
   const [showAboutUs, setShowAboutUs] = useState(false);
@@ -68,7 +75,38 @@ export default function Profile({ onNavigate, onViewApplication, applications = 
       ),
       onClick: () => {
         handleHaptic();
-        setNotifications(!notifications);
+        const newState = !notifications;
+        
+        let isSupported = false;
+        if (window.Telegram?.WebApp?.version) {
+          const versionObj = window.Telegram.WebApp.version.split('.').map(Number);
+          isSupported = versionObj[0] > 6 || (versionObj[0] === 6 && versionObj[1] >= 9);
+        }
+
+        if (newState && isSupported && window.Telegram?.WebApp?.requestWriteAccess) {
+          try {
+            window.Telegram.WebApp.requestWriteAccess((granted) => {
+              if (granted) {
+                setNotifications(true);
+                toast.success(lang === 'EN' ? 'Notifications enabled' : 'បានបើកការជូនដំណឹង');
+              } else {
+                // User declined, fallback to disabled or keep it disabled
+                toast.error(lang === 'EN' ? 'Permission denied' : 'ការអនុញ្ញាតត្រូវបានបដិសេធ');
+              }
+            });
+          } catch (err) {
+            // Fallback if the method throws an error despite version check
+            setNotifications(true);
+            toast.success(lang === 'EN' ? 'Notifications enabled' : 'បានបើកការជូនដំណឹង');
+          }
+        } else {
+          setNotifications(newState);
+          if (newState) {
+            toast.success(lang === 'EN' ? 'Notifications enabled' : 'បានបើកការជូនដំណឹង');
+          } else {
+            toast.success(lang === 'EN' ? 'Notifications disabled' : 'បានបិទការជូនដំណឹង');
+          }
+        }
       }
     },
     { 

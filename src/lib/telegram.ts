@@ -76,7 +76,7 @@ export const sendTelegramNotification = async (settings: AppSettings, app: LoanA
   }
 };
 
-export const sendTelegramStatusUpdateNotification = async (settings: AppSettings, app: LoanApplication, newStatus: string, reason?: string): Promise<boolean> => {
+export const sendTelegramStatusUpdateNotification = async (settings: AppSettings, app: LoanApplication, newStatus: string, reason?: string, adminName?: string): Promise<boolean> => {
   if (!settings.enableTelegramNotify || !settings.telegramBotToken) {
     return false;
   }
@@ -125,12 +125,8 @@ export const sendTelegramStatusUpdateNotification = async (settings: AppSettings
 📦 <b>ប្រភេទផលិតផល:</b> ${productName}
 💵 <b>ចំនួនប្រាក់:</b> <b>${formattedAmount}</b>
 
-${statusEmoji} <b>ស្ថានភាពថ្មី:</b> <b>${statusText}</b>
+${statusEmoji} <b>ស្ថានភាពថ្មី:</b> <b>${statusText}</b>${newStatus === 'rejected' && reason ? `\n📝 <b>មូលហេតុ:</b> ${reason}` : ''}${adminName ? `\n\n👨‍💼 <b>អ្នកធ្វើបច្ចុប្បន្នភាព:</b> ${adminName}` : ''}
 `;
-
-  if (newStatus === 'rejected' && reason) {
-    userMessage += `📝 <b>មូលហេតុ:</b> ${reason}\n`;
-  }
 
   try {
     const url = `https://api.telegram.org/bot${token}/sendMessage`;
@@ -207,6 +203,20 @@ export const registerTelegramWebhook = async (botToken: string, domain: string):
   if (!token) return { success: false, message: 'Please enter a valid Telegram Bot Token.' };
 
   try {
+    if (domain.includes('ais-dev') || domain.includes('ais-pre') || domain.includes('localhost')) {
+      // AI Studio Preview blocks external webhooks, use our custom polling endpoint instead
+      const res = await fetch('/api/start-polling', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, domain })
+      });
+      const data = await res.json();
+      if (data.success) {
+        return { success: true, message: 'AI Studio Preview: Started polling successfully instead of webhook!' };
+      }
+      return { success: false, message: 'Failed to start polling for preview.' };
+    }
+
     const webhookUrl = `${domain}/api/webhook/${token}`;
     const url = `https://api.telegram.org/bot${token}/setWebhook?url=${encodeURIComponent(webhookUrl)}`;
     
