@@ -234,8 +234,14 @@ export const registerTelegramWebhook = async (botToken: string, domain: string):
   if (!token) return { success: false, message: 'Please enter a valid Telegram Bot Token.' };
 
   try {
-    if (domain.includes('ais-dev') || domain.includes('ais-pre') || domain.includes('localhost')) {
+    const cleanDomain = domain.replace(/\/+$/, ""); 
+    const webhookUrl = `${cleanDomain}/api/webhook/${token}`;
+
+    if (domain.includes('ais-dev') || domain.includes('localhost')) {
       // AI Studio Preview blocks external webhooks, use our custom polling endpoint instead
+      // Delete any existing webhook to allow getUpdates to work
+      await fetch(`https://api.telegram.org/bot${token}/deleteWebhook`);
+
       const res = await fetch('/api/start-polling', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -243,19 +249,18 @@ export const registerTelegramWebhook = async (botToken: string, domain: string):
       });
       const data = await res.json();
       if (data.success) {
-        return { success: true, message: 'AI Studio Preview: Started polling successfully instead of webhook!' };
+        return { success: true, message: 'Preview Mode: Started polling successfully instead of webhook!' };
       }
       return { success: false, message: 'Failed to start polling for preview.' };
     }
 
-    const cleanDomain = domain.replace(/\/+$/, ""); const webhookUrl = `${cleanDomain}/api/webhook/${token}`;
-    const url = `https://api.telegram.org/bot${token}/setWebhook?url=${encodeURIComponent(webhookUrl)}`;
+    const url = `https://api.telegram.org/bot${token}/setWebhook?url=${encodeURIComponent(webhookUrl)}&drop_pending_updates=true`;
     
     const res = await fetch(url, { method: 'GET' });
     const data = await res.json();
     
     if (data.ok) {
-      return { success: true, message: 'Webhook registered successfully!' };
+      return { success: true, message: 'Webhook registered successfully for Production!' };
     } else {
       return { success: false, message: data.description || 'Failed to register webhook.' };
     }
